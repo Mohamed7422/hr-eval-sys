@@ -1,0 +1,16 @@
+Presentation Layer:
+Role-aware routing: Employee, Manager, HR
+
+
+API / Business Layer:
+CRUD services for templates, cycles, instances, plans, snapshots
+Audit logging injected via a post-hook on create/update/delete
+Auth (JWT tokens, refresh-flows)
+RBAC middleware (reads user_role & manager_dept_override)
+
+
+Data Layer & Services
+PostgreSQL 15 for all relational data; JSONB for audit diffs
+Optional S3 (or object store) for any file attachments
+Redis + BullMQ for background jobs (cycle locking, reminder emails)
+

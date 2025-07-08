@@ -1,0 +1,28 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Employee HTMX demo</title>
+  <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+  <link rel="stylesheet" href="{% static 'evaluation_app/css/simple.css' %}">
+</head>
+<body class="container">
+  <h1>Employees</h1>
+
+  <!-- List container: HTMX will swap its innerHTML after creation -->
+  <div id="emp-table">
+    {% include "partials/employee_rows.html" %}
+  </div>
+
+  <h2>Add employee</h2>
+  <form hx-post="{% url 'emp-create' %}"
+        hx-target="#emp-table"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <input type="text" name="name"  placeholder="Name"  required>
+    <input type="email" name="email" placeholder="Email" required>
+    <button type="submit">Save</button>
+  </form>
+</body>
+</html>

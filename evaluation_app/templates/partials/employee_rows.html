@@ -1,0 +1,10 @@
+<table>
+  <tr><th>ID</th><th>Name</th><th>Email</th></tr>
+  {% for emp in employees %}
+    <tr>
+      <td>{{ emp.id }}</td><td>{{ emp.name }}</td><td>{{ emp.email }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="3">No employees yet.</td></tr>
+  {% endfor %}
+</table>
