@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .import models as m
+from django.utils.connection import ConnectionHandler
 
 
 
