@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,11 +38,36 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "rest_framework",          # DRF
-    "drf_spectacular",         # OpenAPI / Swagger
+    "rest_framework",      # DRF
+    "rest_framework_simplejwt.token_blacklist",  # optional: enable /refresh + blacklist       
+    "drf_spectacular",   # OpenAPI / Swagger
+    "accounts",      # user management  
     "evaluation_app",              # your business logic
-
+                    
 ]
+
+AUTH_USER_MODEL = "accounts.User"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+SIMPLE_JWT = {
+    # use the actual primary‐key field name on your User model
+      "USER_ID_FIELD": "user_id",
+    # this is the name of the claim inside the token payload
+      "USER_ID_CLAIM": "user_id",
+      "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+      "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+      "ROTATE_REFRESH_TOKENS": True,
+      "BLACKLIST_AFTER_ROTATION": True,
+      "AUTH_HEADER_TYPES": ("Bearer",),
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -79,7 +105,7 @@ WSGI_APPLICATION = 'hr_evaluation.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        "NAME": "hr-eval",
+        "NAME": "hr_eval",
         "USER": "postgres",
         "PASSWORD": "#@54854294Mo",
         "HOST": "localhost",
