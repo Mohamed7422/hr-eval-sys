@@ -1,8 +1,6 @@
 from django.contrib import admin
 from .import models as m
-from django.utils.connection import ConnectionHandler
-
-
+ 
 
 # ───────────────────────────────
 #  Basic inline helpers
@@ -45,14 +43,7 @@ class DepartmentAdmin(admin.ModelAdmin):
     autocomplete_fields = ["company", "manager"]
 
 
-# ───────────────────────────────
-#  User
-# ───────────────────────────────
-@admin.register(m.User)
-class UserAdmin(admin.ModelAdmin):
-    list_display = ("name", "email", "role", "created_at")
-    search_fields = ("name", "email")
-    list_filter = ("role",)
+
 
 
 # ───────────────────────────────

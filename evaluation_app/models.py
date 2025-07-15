@@ -1,15 +1,11 @@
 import uuid
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 
 
 # ── Lookup / Enum helpers ────────────────────────────────────────────────
-class Role(models.TextChoices):
-    ADMIN = "ADMIN", "Admin"
-    HR    = "HR",    "HR"
-    HOD   = "HOD",   "Head-of-Dept"
-    LM    = "LM",    "Line Manager"
-    EMP   = "EMP",   "Employee"
+
 
 class CompanySize(models.TextChoices):
     SMALL  = "SMALL",  "Small"
@@ -52,16 +48,7 @@ class CompetencyCategory(models.TextChoices):
 
 
 # ── Core tables ──────────────────────────────────────────────────────────
-class User(models.Model):
-    user_id    = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name       = models.CharField(max_length=120)
-    email      = models.EmailField(unique=True)
-    phone      = models.CharField(max_length=30, blank=True)
-    avatar     = models.URLField(blank=True)
-    role       = models.CharField(max_length=8, choices=Role.choices)
-    title      = models.CharField(max_length=120, blank=True)
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True)
+
 
 
 class Company(models.Model):
@@ -78,7 +65,7 @@ class Department(models.Model):
     department_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name          = models.CharField(max_length=120)
     employee_count = models.PositiveIntegerField()
-    manager       = models.ForeignKey(User, on_delete=models.PROTECT, related_name="managed_departments")
+    manager       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="managed_departments")
     company       = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="departments")
     created_at    = models.DateTimeField(default=timezone.now)
     updated_at    = models.DateTimeField(auto_now=True)
@@ -94,7 +81,7 @@ class Employee(models.Model):
     join_date        = models.DateField()
     created_at       = models.DateTimeField(default=timezone.now)
     updated_at       = models.DateTimeField(auto_now=True)
-    user             = models.OneToOneField(User, on_delete=models.CASCADE, related_name="employee_profile")
+    user             = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="employee_profile")
     company          = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True)
 
     departments = models.ManyToManyField(Department, through="EmployeeDepartment", related_name="employees")
@@ -128,7 +115,7 @@ class Evaluation(models.Model):
     type          = models.CharField(max_length=10, choices=EvalType.choices)
     status        = models.CharField(max_length=20, choices=EvalStatus.choices)
     score         = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-    reviewer      = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviews")
+    reviewer      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviews")
     period        = models.CharField(max_length=20)      # e.g. '2025-Q1'
     created_at    = models.DateTimeField(default=timezone.now)
     updated_at    = models.DateTimeField(auto_now=True)
