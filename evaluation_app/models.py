@@ -65,7 +65,7 @@ class Department(models.Model):
     department_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name          = models.CharField(max_length=120)
     employee_count = models.PositiveIntegerField()
-    manager       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="managed_departments")
+    manager       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="managed_departments", null=True, blank=True)
     company       = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="departments")
     created_at    = models.DateTimeField(default=timezone.now)
     updated_at    = models.DateTimeField(auto_now=True)

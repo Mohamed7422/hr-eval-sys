@@ -1,10 +1,11 @@
 from rest_framework import viewsets, filters
+from rest_framework.permissions import IsAuthenticated
 from evaluation_app.models import Employee
 from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR
 
 
-class EmployeeViewSet(viewsets.ReadOnlyModelViewSet):
+class EmployeeViewSet(viewsets.ModelViewSet):
 
     """
     * HR/Admin: list every employee.
@@ -14,28 +15,35 @@ class EmployeeViewSet(viewsets.ReadOnlyModelViewSet):
 
    # queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
+    permission_classes = [IsAuthenticated]  # default fallback
     filter_backends = [filters.SearchFilter]
     search_fields = ['user__name', 'user__email']
      
     def get_permissions(self):
+        user_role = self.request.user.role
+        # list permission (collection-level)
         if self.action == "list":
-            if self.request.user.role in ("HR", "Admin"):
-               return [IsHR() | IsAdmin() | IsHOD()]
-            elif self.request.user.role in ("LM", "HOD"):
-                return [IsLineManager()| IsHOD()]
-            else:
-                # regular employee cannot list everybody
-                self.permission_denied(
-                    self.request, message="You do not have permission to view this list."
-                )
-        # retrieve permission (object-level)        
-        return [IsSelfOrAdminHR]  
+            if user_role in ("HR", "ADMIN"):
+               return [(IsAdmin | IsHR)()]
+            if user_role in ("LM", "HOD"):
+                return [(IsLineManager | IsHOD)()]
+            # regular employee → deny list-all
+            self.permission_denied(
+                self.request, message="You cannot list all employees."
+            )
+
+        # retrieve permission (object-level)  
+        if self.action == "retrieve":      
+           return [IsSelfOrAdminHR]  
+        
+        # default: no extra permissions
+        return super().get_permissions()
     
     def get_queryset(self):
         user = self.request.user
-        qs = Employee.objects.select_related('user','company').prefetch_related("department")
+        qs = Employee.objects.select_related('user','company').prefetch_related("departments")
 
-        if user.role in ("HR", "Admin"):
+        if user.role in ("HR", "ADMIN"):
             return qs
         if user.role in ("HOD", "LM"):
             # filter by department for HOD and Line Managers
