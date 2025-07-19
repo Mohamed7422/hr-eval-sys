@@ -14,5 +14,6 @@ class EmailLoginSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         token["role"] = user.role
-        token["name"] = user.get_full_name() or user.email
+        token["name"] = user.name or user.email
+        print(f"Token and email and name : {token}, {user.email}, {user.role}, {user.name}")
         return token
