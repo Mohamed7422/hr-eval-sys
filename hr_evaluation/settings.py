@@ -12,23 +12,30 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
+import dj_database_url 
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")  # load environment variables from .env file
+print("🔍 raw os.environ.get('DATABASE_URL') =", os.environ.get("DATABASE_URL"))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=2v!@2s962!pfoqk&^y+t!ah*8q(^$c$(@7c2(gri(8t)loin8'
+
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+#DEBUG = True
+DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
-ALLOWED_HOSTS = []
-
-
+#ALLOWED_HOSTS = ['688463552f41.ngrok-free.app', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost 127.0.0.1").split()
+print("🔒 ALLOWED_HOSTS =", ALLOWED_HOSTS)
 # Application definition
 
 INSTALLED_APPS = [
@@ -78,6 +85,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # for serving static files in production
 ]
 
 ROOT_URLCONF = 'hr_evaluation.urls'
@@ -104,18 +112,17 @@ WSGI_APPLICATION = 'hr_evaluation.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        "NAME": "hr_eval",
-        "USER": "postgres",
-        "PASSWORD": "#@54854294Mo",
-        "HOST": "localhost",
-        "PORT": "5432",
-    }
+    'default':dj_database_url.config(
+        default=os.environ["DATABASE_URL"],
+        conn_max_age=600,
+        ssl_require=None  # set to True if using SSL in production
+    )
 } 
+print("🔎 DEBUG=", DEBUG)
+print("🔎 DATABASES =", DATABASES)
 
 
-
+ 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -151,6 +158,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
