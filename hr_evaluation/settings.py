@@ -111,7 +111,7 @@ WSGI_APPLICATION = 'hr_evaluation.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
+DATABASES={
     'default':dj_database_url.config(
         default=os.environ["DATABASE_URL"],
         conn_max_age=600,
