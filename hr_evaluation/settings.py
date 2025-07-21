@@ -34,9 +34,16 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
 #ALLOWED_HOSTS = ['688463552f41.ngrok-free.app', 'localhost', '127.0.0.1']
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost 127.0.0.1").split()
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split()
 print("🔒 ALLOWED_HOSTS =", ALLOWED_HOSTS)
 # Application definition
+
+raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+# split on commas, strip any whitespace
+CSRF_TRUSTED_ORIGINS = [u.strip() for u in raw.split(",") if u.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
