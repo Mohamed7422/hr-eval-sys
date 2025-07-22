@@ -1,32 +1,17 @@
 {
   "version": 2,
-  "env": {
-    "DJANGO_SETTINGS_MODULE": "hr_evaluation.settings"
-  },
   "builds": [
     {
-      "src": "api/index.py",
+      "src": "hr_evaluation/wsgi.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "50mb"
+        "runtime": "python3.12",
+        "maxLambdaSize": "15mb"
       }
     }
   ],
   "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.py"
-    }
-  ],
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 30
-    }
-  }
-}
+    { "src": "/static/(.*)", "dest": "/static/$1" },
+    { "src": "/(.*)","dest": "hr_evaluation/wsgi.py" }
   ]
 }
