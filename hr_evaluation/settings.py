@@ -18,32 +18,32 @@ from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")  # load environment variables from .env file
-print("🔍 raw os.environ.get('DATABASE_URL') =", os.environ.get("DATABASE_URL"))
+
+# Load environment variables from .env file (for local development)
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-
-SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "fallback-secret-key-for-development")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-#DEBUG = True
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
+ 
 #ALLOWED_HOSTS = ['688463552f41.ngrok-free.app', 'localhost', '127.0.0.1']
-if DEBUG: #
-    ALLOWED_HOSTS = ["*"]
-else:
-    ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["*"]
 print("🔒 ALLOWED_HOSTS =", ALLOWED_HOSTS)
+ 
 # Application definition
 
 raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
 # split on commas, strip any whitespace
-CSRF_TRUSTED_ORIGINS = [u.strip() for u in raw.split(",") if u.strip()]
+CSRF_TRUSTED_ORIGINS = [url.strip() for url in raw.split(",") if url.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -120,16 +120,22 @@ WSGI_APPLICATION = 'hr_evaluation.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES={
-    'default':dj_database_url.config(
-        default=os.environ["DATABASE_URL"],
-        conn_max_age=600,
-        ssl_require=None  # set to True if using SSL in production
-    )
-} 
-print("🔎 DEBUG=", DEBUG)
-print("🔎 DATABASES =", DATABASES)
+# Default to SQLite for development if no DATABASE_URL is provided
+default_db_url = "sqlite:///" + str(BASE_DIR / "db.sqlite3")
 
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get("DATABASE_URL", default_db_url),
+        conn_max_age=600,
+        ssl_require=True if not DEBUG else None
+    )
+}
+
+# For PostgreSQL on Vercel, ensure SSL is configured properly
+if 'postgresql' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['OPTIONS'] = {
+        'sslmode': 'require',
+    }
 
  
 # Password validation
