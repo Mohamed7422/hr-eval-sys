@@ -77,8 +77,8 @@ SIMPLE_JWT = {
       "USER_ID_FIELD": "user_id",
     # this is the name of the claim inside the token payload
       "USER_ID_CLAIM": "user_id",
-      "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-      "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+      "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
+      "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
       "ROTATE_REFRESH_TOKENS": True,
       "BLACKLIST_AFTER_ROTATION": True,
       "AUTH_HEADER_TYPES": ("Bearer",),
