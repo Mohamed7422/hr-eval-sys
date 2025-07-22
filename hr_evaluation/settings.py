@@ -34,12 +34,11 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "fallback-secret-key-for-develo
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
-if DEBUG:
-    ALLOWED_HOSTS = ["*"]
-else:
-    ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
-    ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS if host.strip()]
-
+ 
+#ALLOWED_HOSTS = ['688463552f41.ngrok-free.app', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ["*"]
+print("🔒 ALLOWED_HOSTS =", ALLOWED_HOSTS)
+ 
 # Application definition
 
 raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
