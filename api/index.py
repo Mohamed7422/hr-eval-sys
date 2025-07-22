@@ -11,4 +11,4 @@ app = get_wsgi_application()
 
 def handler(request, response):
     # 3) Adapt the incoming Vercel request to Django
-    return handle_request(application, request, response)
+    return handle_request(app, request, response)
