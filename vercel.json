@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "requirements.txt",         "use": "@vercel/python" },
+    { "src": "api/index.py",             "use": "@vercel/python" },
+    { "src": "hr_evaluation/**/*",       "use": "@vercel/python" }
+  ],
+  "routes": [
+    
+    { "src": "/static/(.*)", "dest": "/static/$1" },
+    
+    { "src": "/(.*)",        "dest": "/api/index.py" }
+  ]
+}
