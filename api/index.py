@@ -7,7 +7,7 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hr_evaluation.settings")
 
 # 2) Load WSGI app once
-application = get_wsgi_application()
+app = get_wsgi_application()
 
 def handler(request, response):
     # 3) Adapt the incoming Vercel request to Django
