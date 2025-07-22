@@ -10,10 +10,11 @@
       }
     }
   ],
-  "buildCommand": "python manage.py collectstatic --noinput",
-  "routes": [
-    { "src": "/static/(.*)", "dest": "/staticfiles/$1" },
+    "routes": [
+    { "src": "/static/(.*)", "dest": "staticfiles/$1" },
     { "src": "/(.*)","dest": "hr_evaluation/wsgi.py" }
-  ]
+  ],
+  "buildCommand": "python manage.py collectstatic --noinput"
+
 
 }
