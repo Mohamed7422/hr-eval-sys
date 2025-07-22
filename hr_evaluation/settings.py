@@ -95,6 +95,8 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',  # for serving static files in production
 ]
 
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 ROOT_URLCONF = 'hr_evaluation.urls'
 
 TEMPLATES = [
