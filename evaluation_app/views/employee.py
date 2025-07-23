@@ -20,34 +20,57 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     search_fields = ['user__name', 'user__email']
      
     def get_permissions(self):
-        user_role = self.request.user.role
-        # list permission (collection-level)
-        if self.action == "list":
-            if user_role in ("HR", "ADMIN"):
-               return [(IsAdmin | IsHR)()]
-            if user_role in ("LM", "HOD"):
-                return [(IsLineManager | IsHOD)()]
-            # regular employee → deny list-all
-            self.permission_denied(
-                self.request, message="You cannot list all employees."
-            )
+        role = self.request.user.role
 
-        # retrieve permission (object-level)  
-        if self.action == "retrieve":      
-           return [IsSelfOrAdminHR]  
-        
-        # default: no extra permissions
+        # ─── LIST ───────────────────────────────────────
+        if self.action == 'list':
+            if role in ('ADMIN','HR'):
+                return [(IsAdmin|IsHR)()]
+            if role in ('HOD','LM'):
+                return [(IsHOD|IsLineManager)()]
+            self.permission_denied(self.request, message="Cannot list all employees.")
+
+        # ─── RETRIEVE ───────────────────────────────────
+        if self.action == 'retrieve':
+            # allow employee to see their own, and Admin/HR see anyone
+            return [IsSelfOrAdminHR()]
+
+        # ─── UPDATE / PARTIAL_UPDATE ────────────────────
+        if self.action in ('update','partial_update'):
+            # Admin & HR get free reign ...
+            if role in ('ADMIN','HR'):
+                return [(IsAdmin|IsHR)()]
+            # … HOD & LM only on people they manage
+            if role in ('HOD','LM'):
+                return [(IsHOD|IsLineManager)()]
+            # everyone else forbidden
+            self.permission_denied(self.request, message="You cannot update this employee.")
+
+        # ─── DELETE ─────────────────────────────────────
+        if self.action == 'destroy':
+            if role in ('ADMIN','HR'):
+                return [(IsAdmin|IsHR)()]
+            self.permission_denied(self.request, message="You cannot delete employees.")
+
+        # ─── CREATE ─────────────────────────────────────
+        if self.action == 'create':
+            if role in ('ADMIN','HR'):
+                return [(IsAdmin|IsHR)()]
+            self.permission_denied(self.request, message="You cannot create employees.")
+
+        # fallback
         return super().get_permissions()
-    
+
     def get_queryset(self):
         user = self.request.user
-        qs = Employee.objects.select_related('user','company').prefetch_related("departments")
+        qs   = Employee.objects.select_related('user','company').prefetch_related('departments')
 
-        if user.role in ("HR", "ADMIN"):
+        if user.role in ('ADMIN','HR'):
             return qs
-        if user.role in ("HOD", "LM"):
-            # filter by department for HOD and Line Managers
-            return qs.filter(department__manager=user).distinct()
+        if user.role in ('HOD','LM'):
+            # only those in departments they manage
+            return qs.filter(departments__manager=user).distinct()
+        # regular employee only sees self
         return qs.filter(user=user)
 
 
