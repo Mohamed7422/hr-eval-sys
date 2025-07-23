@@ -14,7 +14,7 @@
     { "src": "/static/(.*)", "dest": "staticfiles/$1" },
     { "src": "/(.*)","dest": "hr_evaluation/wsgi.py" }
   ],
-  "buildCommand": "python manage.py collectstatic --noinput"
+  "buildCommand": "python manage.py collectstatic --noinput && python manage.py migrate",
 
 
 }
