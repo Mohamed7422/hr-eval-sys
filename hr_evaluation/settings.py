@@ -100,7 +100,8 @@ MIDDLEWARE = [
 
 # -- Allow only your production front-end(s) --------------------
 CORS_ALLOWED_ORIGINS = [
-    "https://hr-evaluation-system.vercel.app/",
+    "*",  # allow all origins (not recommended for production)
+   # "https://hr-evaluation-system.vercel.app/",
     # add staging or local ngrok URLs if needed
 ]
 # If your frontend sends cookies / Authorization header:
