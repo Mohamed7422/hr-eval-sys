@@ -99,11 +99,13 @@ MIDDLEWARE = [
 ]
 
 # -- Allow only your production front-end(s) --------------------
-CORS_ALLOWED_ORIGINS = [
-    "*",  # allow all origins (not recommended for production)
+CORS_ALLOW_ALL_ORIGINS = True
+#CORS_ALLOWED_ORIGINS = []
+     
+  # allow all origins (not recommended for production)
    # "https://hr-evaluation-system.vercel.app/",
     # add staging or local ngrok URLs if needed
-]
+
 # If your frontend sends cookies / Authorization header:
 CORS_ALLOW_CREDENTIALS = True
 
@@ -113,7 +115,7 @@ CORS_ALLOW_CREDENTIALS = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-STATICFILES_DIRS = [ BASE_DIR / "evaluation_app/static" ]
+STATICFILES_DIRS = [ BASE_DIR / "evaluation_app" / "static" ]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 ROOT_URLCONF = 'hr_evaluation.urls'
