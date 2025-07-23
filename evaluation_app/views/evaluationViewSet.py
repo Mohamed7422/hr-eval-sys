@@ -17,7 +17,7 @@ class EvaluationViewSet(viewsets.ModelViewSet):
     """
     Permissions
     -----------
-    • Admin / HR      → full CRUD.  
+    • ADMIN / HR      → full CRUD.  
     • HOD / LM        → may create evaluations **only** for employees
                         they manage; may update those evaluations.  
     • Employee        → read-only access to own evaluations.  
@@ -46,9 +46,9 @@ class EvaluationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = (Evaluation.objects.select_related("employee__user","reviewer")
               .prefetch_related("objective_set", "competency_set")
-              )
+              ) 
         user = self.request.user
-        if user.role in ("Admin", "HR"):
+        if user.role in ("ADMIN", "HR"):
             return qs
         if user.role in ("HOD", "LM"):
             return qs.filter(employee__departments__manager=user).distinct()
