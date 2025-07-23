@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "drf_spectacular",   # OpenAPI / Swagger
     "accounts",      # user management  
     "evaluation_app",              # your business logic
+    "corsheaders",
                     
 ]
 
@@ -86,6 +87,7 @@ SIMPLE_JWT = {
 }
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",# for serving static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -95,6 +97,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# -- Allow only your production front-end(s) --------------------
+CORS_ALLOWED_ORIGINS = [
+    "https://hr-evaluation-system.vercel.app/",
+    # add staging or local ngrok URLs if needed
+]
+# If your frontend sends cookies / Authorization header:
+CORS_ALLOW_CREDENTIALS = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
