@@ -15,4 +15,5 @@ from whitenoise import WhiteNoise
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hr_evaluation.settings')
 
 application = get_wsgi_application()
-application = WhiteNoise(application, root='staticfiles_build/static')
+app = application  # For compatibility with serverless frameworks like Vercel
+# This line is often needed for serverless deployments to recognize the WSGI app

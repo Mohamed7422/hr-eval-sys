@@ -11,26 +11,44 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+ 
+from datetime import timedelta
 import os
-import dj_database_url
+import dj_database_url 
+from dotenv import load_dotenv
+ 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file (for local development)
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=2v!@2s962!pfoqk&^y+t!ah*8q(^$c$(@7c2(gri(8t)loin8'
+
+ 
+SECRET_KEY = os.environ["SECRET_KEY"]
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
-ALLOWED_HOSTS = ['.vercel.app', '.now.sh', 'localhost', '127.0.0.1']
-
-
+ 
+#ALLOWED_HOSTS = ['688463552f41.ngrok-free.app', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ["*"]
+print("🔒 ALLOWED_HOSTS =", ALLOWED_HOSTS)
+ 
 # Application definition
+
+raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+# split on commas, strip any whitespace
+CSRF_TRUSTED_ORIGINS = [url.strip() for url in raw.split(",") if url.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -39,14 +57,43 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "rest_framework",          # DRF
-    "drf_spectacular",         # OpenAPI / Swagger
+    "rest_framework",      # DRF
+    "rest_framework_simplejwt.token_blacklist",  # optional: enable /refresh + blacklist       
+    "drf_spectacular",   # OpenAPI / Swagger
+    "accounts",      # user management  
     "evaluation_app",              # your business logic
-
+    "corsheaders",
+                    
 ]
 
+AUTH_USER_MODEL = "accounts.User"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+SIMPLE_JWT = {
+    # use the actual primary‐key field name on your User model
+      "USER_ID_FIELD": "user_id",
+    # this is the name of the claim inside the token payload
+      "USER_ID_CLAIM": "user_id",
+      "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
+      "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
+      "ROTATE_REFRESH_TOKENS": True,
+      "BLACKLIST_AFTER_ROTATION": True,
+      "AUTH_HEADER_TYPES": ("Bearer",),
+      "UPDATE_LAST_LOGIN": True,
+}
+
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",# for serving static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -54,6 +101,26 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# -- Allow only your production front-end(s) --------------------
+CORS_ALLOW_ALL_ORIGINS = True
+#CORS_ALLOWED_ORIGINS = []
+     
+  # allow all origins (not recommended for production)
+   # "https://hr-evaluation-system.vercel.app/",
+    # add staging or local ngrok URLs if needed
+
+# If your frontend sends cookies / Authorization header:
+CORS_ALLOW_CREDENTIALS = True
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.2/howto/static-files/
+
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STATICFILES_DIRS = [ BASE_DIR / "evaluation_app" / "static" ]
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 ROOT_URLCONF = 'hr_evaluation.urls'
 
@@ -78,26 +145,26 @@ WSGI_APPLICATION = 'hr_evaluation.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Use environment variable for database URL in production
-if 'DATABASE_URL' in os.environ:
-    DATABASES = {
-        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
+
+# Default to SQLite for development if no DATABASE_URL is provided
+default_db_url = "sqlite:///" + str(BASE_DIR / "db.sqlite3")
+
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get("DATABASE_URL", default_db_url),
+        conn_max_age=600,
+        ssl_require=True if not DEBUG else None
+    )
+}
+
+# For PostgreSQL on Vercel, ensure SSL is configured properly
+if 'postgresql' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['OPTIONS'] = {
+        'sslmode': 'require',
     }
-else:
-    # Local development database
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            "NAME": "hr-eval",
-            "USER": "postgres",
-            "PASSWORD": "#@54854294Mo",
-            "HOST": "localhost",
-            "PORT": "5432",
-        }
-    }
 
 
-
+ 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -129,21 +196,10 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles_build', 'static')
+ 
 
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Production settings
-if not DEBUG:
-    # Security settings for production
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
