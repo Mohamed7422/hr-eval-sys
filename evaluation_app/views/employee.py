@@ -1,4 +1,5 @@
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from evaluation_app.models import Employee
 from evaluation_app.serializers.employee_serilized import EmployeeSerializer
@@ -14,11 +15,13 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     """
 
    # queryset = Employee.objects.all()
+    queryset = Employee.objects.select_related('user','company').prefetch_related('departments')
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]  # default fallback
     filter_backends = [filters.SearchFilter]
     search_fields = ['user__name', 'user__email']
      
+    
     def get_permissions(self):
         role = self.request.user.role
 
@@ -72,6 +75,14 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             return qs.filter(departments__manager=user).distinct()
         # regular employee only sees self
         return qs.filter(user=user)
+    
+    def get_serializer_class(self):
+        return EmployeeSerializer
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
 
-        
+        return Response(
+            {"message": "Employee deleted successfully."}, status=status.HTTP_200_OK
+        )   

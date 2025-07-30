@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from evaluation_app.utils import LabelChoiceField
 
 
 
@@ -8,7 +9,7 @@ User = get_user_model()
 class UserCreateSerializer(serializers.ModelSerializer):
     """Create-only serializer. Hashes password & returns user_id."""
     password = serializers.CharField(write_only=True, min_length=8)
-
+    role = LabelChoiceField(choices=User._meta.get_field("role").choices)
     class Meta:
         model = User
         fields = ["user_id", "username", "first_name", "last_name", "name", "email", "phone", "avatar", "password", "role", "title"]
