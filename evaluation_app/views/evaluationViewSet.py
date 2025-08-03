@@ -27,24 +27,37 @@ class EvaluationViewSet(viewsets.ModelViewSet):
     
     #----dynamic permissions----
     def get_permissions(self):
-        
-        if self.action in ("list", "retrieve"):
-            #reading
-            if self.request.user.role in ("ADMIN", "HR"):
-                return [(IsAdmin | IsHR)()]  
-            if self.request.user.role in ("HOD", "LM"):
-                return [(IsHOD | IsLineManager)()]
+        role = self.request.user.role
+        action = self.action
+
+         # ─── LIST / RETRIEVE ─────────────────────────────────────
+        if action in ("list", "retrieve"):
+            if role in ("ADMIN", "HR"):
+                return [(IsAdmin|IsHR)()]
+            if role in ("HOD", "LM"):
+                return [(IsHOD|IsLineManager)()]
             return [IsSelfOrAdminHR()]
-        #creating, updating, deleting
-        if self.request.user.role in ("ADMIN", "HR"):
-            return [(IsAdmin | IsHR)()]
         
-        return [(IsHOD | IsLineManager)()] # LM & HOD restricted further in perform_create
-    # ----------------------------------------------------------
+        # ─── CREATE / UPDATE / PARTIAL_UPDATE ───────────────────
+        if action in ("create", "update", "partial_update"):
+            if role in ("ADMIN", "HR"):
+                return [(IsAdmin|IsHR)()]
+            return [(IsHOD|IsLineManager)()]
+        
+        # ─── DESTROY ────────────────────────────────────────────
+        if action == "destroy":
+            if role in ("ADMIN", "HR"):
+                return [(IsAdmin|IsHR)()]
+            self.permission_denied(self.request, message="You cannot delete evaluations.")
+
+        # Fallback (shouldn’t get here)-Just in case
+        return super().get_permissions()
+        
     # ---- queryset filtered by role ---------------------------
     
     def get_queryset(self):
-        qs = (Evaluation.objects.select_related("employee__user","reviewer")
+        qs = (Evaluation.objects
+              .select_related("employee__user","reviewer")
               .prefetch_related("objective_set", "competency_set")
               ) 
         user = self.request.user
@@ -62,7 +75,7 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         employee_id = self.request.data.get("employee_id")
 
-
+        # LM & HOD may only create evaluations for employees they manage
         if user.role in ("HOD", "LM"):
            managed = Employee.objects.filter(
                departments__manager=user,employee_id=employee_id
@@ -72,8 +85,14 @@ class EvaluationViewSet(viewsets.ModelViewSet):
                    {"detail": "You can only create evaluations for employees you manage."},
                    status=status.HTTP_403_FORBIDDEN
                )
-    
-           serializer.save()
+        # Admin & HR may create evaluations for any employee
+        serializer.save()
 
    
     # ----------------------------------------------------------       
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({
+            "message": "Evaluation deleted successfully."
+        },status=status.HTTP_204_NO_CONTENT)

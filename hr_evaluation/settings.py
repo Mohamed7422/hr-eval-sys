@@ -148,15 +148,15 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get("DATABASE_URL", default_db_url),
         conn_max_age=600,
-        ssl_require=True if not DEBUG else None
+        ssl_require=not DEBUG
     )
 }
 
 # For PostgreSQL on Vercel, ensure SSL is configured properly
-if 'postgresql' in DATABASES['default']['ENGINE']:
-    DATABASES['default']['OPTIONS'] = {
-        'sslmode': 'require',
-    }
+#if 'postgresql' in DATABASES['default']['ENGINE']:
+ #   DATABASES['default']['OPTIONS'] = {
+  #      'sslmode': 'require',
+   # }
 
  
 # Password validation

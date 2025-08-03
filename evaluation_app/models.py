@@ -117,8 +117,8 @@ class Evaluation(models.Model):
     score         = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     reviewer      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviews")
     period        = models.CharField(max_length=20)      # e.g. '2025-Q1'
-    created_at    = models.DateTimeField(default=timezone.now)
-    updated_at    = models.DateTimeField(auto_now=True)
+    created_at    = models.DateTimeField(default=timezone.now) #format "%Y-%m-%d %H:%M:%S"
+    updated_at    = models.DateTimeField(auto_now=True) #format "%Y-%m-%d %H:%M:%S"
 
     # convenience M2M via through tables
     objectives   = models.ManyToManyField("Objective", through="EmployeeObjective", related_name="employees")
