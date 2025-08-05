@@ -6,15 +6,12 @@ from evaluation_app.models import (
 from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.models import Employee
 from evaluation_app.utils import LabelChoiceField
+from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
+from evaluation_app.serializers.competency_serializer import CompetencySerializer
 
 User = get_user_model()
 
-class ObjectiveSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Objective
-        fields = "__all__"
-        read_only_fields = ("objective_id", "created_at", "updated_at")
-
+ 
 class EvaluationSerializer(serializers.ModelSerializer):
 
     #--WRITE-ONLY--
@@ -40,12 +37,13 @@ class EvaluationSerializer(serializers.ModelSerializer):
     reviewer     = serializers.CharField(
         source="reviewer.name", read_only=True, default=None
     )
-    objectives   = ObjectiveSerializer(many=True, read_only=True)
+    objectives   = ObjectiveSerializer(source="objective_set",many=True, read_only=True)
+    competencies = CompetencySerializer(source="competency_set",many=True, read_only=True)
     type         = LabelChoiceField(choices=EvalType.choices)
     status       = LabelChoiceField(choices=EvalStatus.choices)
     score        = serializers.DecimalField(max_digits=4, decimal_places=2, 
                                             allow_null=True, required=False)
-    objectives  = ObjectiveSerializer(many=True, read_only=True)
+    
     created_at   = serializers.DateTimeField(read_only=True)
     updated_at   = serializers.DateTimeField(read_only=True)
     class Meta:
@@ -58,6 +56,7 @@ class EvaluationSerializer(serializers.ModelSerializer):
             "period",
             "created_at", "updated_at",
             "objectives",
+            "competencies"
         ]
         read_only_fields = ("evaluation_id", "created_at", "updated_at")
 

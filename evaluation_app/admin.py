@@ -11,16 +11,16 @@ class EmployeeDepartmentInline(admin.TabularInline):
     autocomplete_fields = ["department"]
 
 
-class EmployeeObjectiveInline(admin.TabularInline):
-    model = m.EmployeeObjective
-    extra = 0
-    autocomplete_fields = ["objective"]
+#class EmployeeObjectiveInline(admin.TabularInline):
+ #   model = m.EmployeeObjective
+ #   extra = 0
+ #   autocomplete_fields = ["objective"]
 
 
-class EmployeeCompetencyInline(admin.TabularInline):
-    model = m.EmployeeCompetency
-    extra = 0
-    autocomplete_fields = ["competency"]
+#class EmployeeCompetencyInline(admin.TabularInline):
+ #   model = m.EmployeeCompetency
+ #  extra = 0
+  #  autocomplete_fields = ["competency"]
 
 
 # ───────────────────────────────
@@ -55,7 +55,7 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_filter  = ("managerial_level", "status", "company")
     search_fields = ("user__name", "user__email")
     autocomplete_fields = ["user", "company"]
-    inlines = [EmployeeDepartmentInline, EmployeeObjectiveInline, EmployeeCompetencyInline]
+    inlines = [EmployeeDepartmentInline]
 
 
 # ───────────────────────────────

@@ -15,13 +15,8 @@ User = get_user_model()
 class DepartmentSerializer(serializers.ModelSerializer):
 
      # allow clients to pass "manager": null or omit the field entirely
-    manager = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
-        required=False,
-        allow_null=True,
-    )
-    company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
-
+    manager = serializers.CharField(source="manager.name", allow_null=True, required=False)
+    company = serializers.CharField(source="company.name", read_only=True)
 
     class Meta:
         model = Department

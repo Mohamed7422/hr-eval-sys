@@ -10,9 +10,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
     """Create-only serializer. Hashes password & returns user_id."""
     password = serializers.CharField(write_only=True, min_length=8)
     role = LabelChoiceField(choices=User._meta.get_field("role").choices)
+    position = serializers.CharField(source="title", allow_blank=True)
     class Meta:
         model = User
-        fields = ["user_id", "username", "first_name", "last_name", "name", "email", "phone", "avatar", "password", "role", "title"]
+        fields = ["user_id", "username", "first_name", "last_name",
+                   "name", "email", "phone", "avatar", "password", "role", "position"]
         read_only_fields = ("user_id", "created_at", "updated_at")  # user_id is auto-generated
 
     def create(self, validated_data):  # called by viewset

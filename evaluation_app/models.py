@@ -10,7 +10,7 @@ from django.conf import settings
 class CompanySize(models.TextChoices):
     SMALL  = "SMALL",  "Small"
     MEDIUM = "MEDIUM", "Medium"
-    LARGE  = "LARGE",  "Large"
+    LARGE  = "LARGE",  "Large"  
 
 class ManagerialLevel(models.TextChoices):
     IC          = "IC",          "Individual Contributor"
@@ -121,8 +121,8 @@ class Evaluation(models.Model):
     updated_at    = models.DateTimeField(auto_now=True) #format "%Y-%m-%d %H:%M:%S"
 
     # convenience M2M via through tables
-    objectives   = models.ManyToManyField("Objective", through="EmployeeObjective", related_name="employees")
-    competencies = models.ManyToManyField("Competency", through="EmployeeCompetency", related_name="employees")
+    #objectives   = models.ManyToManyField("Objective", through="EmployeeObjective", related_name="employees")
+    #competencies = models.ManyToManyField("Competency", through="EmployeeCompetency", related_name="employees")
 
 
 class Objective(models.Model):
@@ -138,13 +138,13 @@ class Objective(models.Model):
     updated_at    = models.DateTimeField(auto_now=True)
 
 
-class EmployeeObjective(models.Model):
-    evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE)
-    employee  = models.ForeignKey(Employee,  on_delete=models.CASCADE)
-    objective = models.ForeignKey(Objective, on_delete=models.CASCADE)
+#class EmployeeObjective(models.Model):
+  #  evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE)
+  #  employee  = models.ForeignKey(Employee,  on_delete=models.CASCADE)
+   # objective = models.ForeignKey(Objective, on_delete=models.CASCADE)
 
-    class Meta:
-        unique_together = ("evaluation","employee", "objective")
+  #  class Meta:
+    #    unique_together = ("evaluation","employee", "objective")
 
 
 class Competency(models.Model):
@@ -160,10 +160,10 @@ class Competency(models.Model):
     updated_at     = models.DateTimeField(auto_now=True)
 
 
-class EmployeeCompetency(models.Model):
-    evaluation  = models.ForeignKey(Evaluation, on_delete=models.CASCADE)
-    employee    = models.ForeignKey(Employee,    on_delete=models.CASCADE)
-    competency  = models.ForeignKey(Competency,  on_delete=models.CASCADE)
+#class EmployeeCompetency(models.Model):
+ #   evaluation  = models.ForeignKey(Evaluation, on_delete=models.CASCADE)
+  #  employee    = models.ForeignKey(Employee,    on_delete=models.CASCADE)
+  #  competency  = models.ForeignKey(Competency,  on_delete=models.CASCADE)
 
-    class Meta:
-        unique_together = ("evaluation","employee", "competency")
+  #  class Meta:
+   #     unique_together = ("evaluation","employee", "competency")
