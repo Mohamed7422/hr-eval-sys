@@ -17,6 +17,16 @@ class DepartmentSerializer(serializers.ModelSerializer):
      # allow clients to pass "manager": null or omit the field entirely
     manager = serializers.CharField(source="manager.name", allow_null=True, required=False)
     company = serializers.CharField(source="company.name", read_only=True)
+    company_id = serializers.PrimaryKeyRelatedField(source="company",
+                                                   queryset=Company.objects.all(),
+                                                   write_only=True)
+    manager_id = serializers.PrimaryKeyRelatedField(source="manager",
+                                                   queryset=User.objects.all(),
+                                                   write_only=True,
+                                                   allow_null=True,
+                                                   required=False)
+    employee_count = serializers.IntegerField(required=False,default=0)
+    
 
     class Meta:
         model = Department
@@ -26,6 +36,8 @@ class DepartmentSerializer(serializers.ModelSerializer):
             "employee_count",
             "company",
             "manager",
+            "company_id",
+            "manager_id",
             "created_at",
             "updated_at",
         ]
