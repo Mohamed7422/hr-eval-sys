@@ -17,7 +17,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
     role              = LabelChoiceField(source="user.role", 
                                          choices=User._meta.get_field("role").choices,
                                          required=False)
-    position          = serializers.CharField(source="user.position",          read_only=True)
+    position          = serializers.CharField(source="user.title",          read_only=True)
 
      # ─────── CHOICE DISPLAY & RELATED FIELDS ───────────────────────
     managerial_level = LabelChoiceField(choices=ManagerialLevel.choices)
