@@ -10,14 +10,14 @@ class EmployeeSerializer(serializers.ModelSerializer):
     # READ: show full user data
     #user = UserCreateSerializer(read_only=True)
      # ─────── READ‑ONLY FLATTENED USER FIELDS ─────────────────────
-    name              = serializers.CharField(source="user.name",           read_only=True)
-    email             = serializers.CharField(source="user.email",          read_only=True)
-    phone             = serializers.CharField(source="user.phone",          read_only=True)
-    avatar            = serializers.CharField(source="user.avatar", allow_blank=True, read_only=True)
+    name              = serializers.CharField(source="user.name")
+    email             = serializers.CharField(source="user.email")
+    phone             = serializers.CharField(source="user.phone",allow_blank=True)
+    avatar            = serializers.CharField(source="user.avatar", allow_blank=True)
     role              = LabelChoiceField(source="user.role", 
                                          choices=User._meta.get_field("role").choices,
                                          required=False)
-    position          = serializers.CharField(source="user.title",          read_only=True)
+    position          = serializers.CharField(source="user.title", allow_blank=True)
 
      # ─────── CHOICE DISPLAY & RELATED FIELDS ───────────────────────
     managerial_level = LabelChoiceField(choices=ManagerialLevel.choices)
@@ -51,6 +51,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         source="user",
         write_only=True,
         required=False,
+        partial=True,
     )
  
     
@@ -68,7 +69,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
              # primary key
             "employee_id",
 
-            # read‑only flattened
+            # read‑only flattened-position R/W
             "name","email","phone","avatar","role","position",
             "managerial_level","status",
 
@@ -123,9 +124,12 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
 
     def update(self, instance, validated_data):
+        print("DEBUG validated_data:", validated_data) 
+   
         # 1) nested user update?
         user_payload = validated_data.pop("user", None)
         if user_payload:
+            print("DEBUG user_payload:", user_payload)
             user_serializer = UserCreateSerializer(
                 instance=instance.user,
                 data=user_payload,

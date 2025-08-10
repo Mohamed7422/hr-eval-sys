@@ -1,9 +1,11 @@
-from rest_framework import viewsets, status,mixins
+from rest_framework import viewsets, status,mixins, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Prefetch
 from rest_framework.response import Response
 from evaluation_app.serializers.evaluation_serilizer import (
     EvaluationSerializer, ObjectiveSerializer
 )
+import django_filters
 from rest_framework.permissions import IsAuthenticated
 
 from evaluation_app.models import (
@@ -12,6 +14,13 @@ from evaluation_app.models import (
 from evaluation_app.permissions import(
     IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
 )
+
+class EvaluationFilter(django_filters.FilterSet):
+    employee_id = django_filters.UUIDFilter(field_name="employee__employee_id")
+
+    class Meta:
+        model = Evaluation
+        fields = ["employee", "employee_id"]  # both work
 
 class EvaluationViewSet(viewsets.ModelViewSet):
     """
@@ -22,9 +31,13 @@ class EvaluationViewSet(viewsets.ModelViewSet):
                         they manage; may update those evaluations.  
     • Employee        → read-only access to own evaluations.  
     """
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     permission_classes = [IsAuthenticated]  #default fallback
     serializer_class = EvaluationSerializer
+   
+    filterset_class = EvaluationFilter
     
+
     #----dynamic permissions----
     def get_permissions(self):
         role = self.request.user.role

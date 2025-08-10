@@ -1,16 +1,21 @@
 from rest_framework import serializers
-from evaluation_app.models import Company, Department
+from evaluation_app.models import Company, Department,CompanySize
 from django.contrib.auth import get_user_model
-
+from evaluation_app.utils import LabelChoiceField
 
 
 class CompanySerializer(serializers.ModelSerializer):
+    # ─────── CHOICE DISPLAY & RELATED FIELDS ───────────────────────
+    size= LabelChoiceField(choices=CompanySize.choices)
+
     class Meta:
         model = Company
-        fields = "__all__"
+        fields = [
+            "company_id", "name", "address", "industry", "size", "created_at", "updated_at"
+            ]
         read_only_fields = ("company_id", "created_at", "updated_at")
 
-
+#
 User = get_user_model()
 class DepartmentSerializer(serializers.ModelSerializer):
 
