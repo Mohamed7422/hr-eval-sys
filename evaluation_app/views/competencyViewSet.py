@@ -1,7 +1,9 @@
 # evaluation_app/views/competency_viewset.py
 
-from rest_framework import viewsets
+from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
+from evaluation_app.filters import CompetencyFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from evaluation_app.models import Competency
 from evaluation_app.serializers.competency_serializer import CompetencySerializer
 from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
@@ -15,6 +17,10 @@ class CompetencyViewSet(viewsets.ModelViewSet):
     """
     serializer_class = CompetencySerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = CompetencyFilter
+    search_fields = ["name", "category"]
+    ordering_fields = ["created_at", "updated_at"]
 
     def get_permissions(self):
         role = self.request.user.role

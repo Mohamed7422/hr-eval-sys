@@ -1,16 +1,23 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
+ 
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-
+from django_filters.rest_framework import DjangoFilterBackend
+from evaluation_app.filters import ObjectiveFilter
 from evaluation_app.models import Objective, Employee
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
 from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
+
 
 class ObjectiveViewSet(viewsets.ModelViewSet):
     queryset         = Objective.objects.select_related("evaluation__employee")
     serializer_class = ObjectiveSerializer
     permission_classes = [IsAuthenticated]
 
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter] 
+    filterset_class = ObjectiveFilter 
+    search_fields = ["title","evaluation_id"]
+    ordering_fields = ["created_at", "updated_at", "weight"]
     def get_permissions(self):
         role   = self.request.user.role
         action = self.action

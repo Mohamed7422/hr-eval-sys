@@ -10,8 +10,7 @@ class CompetencySerializer(serializers.ModelSerializer):
     # Clients POST / PATCH with an `evaluation_id`; we write into .evaluation
     evaluation_id = serializers.PrimaryKeyRelatedField(
         source="evaluation",
-        queryset=Evaluation.objects.all(),
-        write_only=True
+        queryset=Evaluation.objects.all()
     )
 
     # We expose employee_id read-only, pulled from the linked evaluation

@@ -11,10 +11,9 @@ class ObjectiveSerializer(serializers.ModelSerializer):
         source="evaluation",
         queryset=Evaluation.objects.all()
     )
-    #Read-Only: Employee pulled from linked evaluation.
+     
     employee_id = serializers.UUIDField(
-        source="evaluation.employee.employee_id",
-        read_only=True
+        source="evaluation.employee.employee_id"
     )
     title          = serializers.CharField()
     description    = serializers.CharField(allow_blank=True, required=False)
