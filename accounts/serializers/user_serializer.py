@@ -14,9 +14,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["user_id", "username", "first_name", "last_name",
-                   "name", "email", "phone", "avatar", "password", "role", "position", 
-                   #write-only
-                   "title"]
+                   "name", "email", "phone", "avatar", "password", "role", "position"]
         read_only_fields = ("user_id", "created_at", "updated_at")  # user_id is auto-generated
 
     def create(self, validated_data):  # called by viewset

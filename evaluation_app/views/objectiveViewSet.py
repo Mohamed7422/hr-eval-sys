@@ -7,8 +7,7 @@ from evaluation_app.filters import ObjectiveFilter
 from evaluation_app.models import Objective, Employee
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
 from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
-
-
+ 
 class ObjectiveViewSet(viewsets.ModelViewSet):
     queryset         = Objective.objects.select_related("evaluation__employee")
     serializer_class = ObjectiveSerializer
