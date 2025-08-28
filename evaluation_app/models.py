@@ -2,10 +2,9 @@ import uuid
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
-
+from django.db.models import Q
 
 # ── Lookup / Enum helpers ────────────────────────────────────────────────
-
 
 class CompanySize(models.TextChoices):
     SMALL  = "SMALL",  "Small"
@@ -21,6 +20,17 @@ class EmpStatus(models.TextChoices):
     ACTIVE   = "ACTIVE",   "Active"
     INACTIVE = "INACTIVE", "Inactive"
     DEFAULT  = "DEFAULT_ACTIVE", "Default Active"
+
+class JobType(models.TextChoices):                
+    FULL_TIME         = "FULL_TIME",         "Full-time"
+    PART_TIME         = "PART_TIME",         "Part-time"
+    FULL_TIME_REMOTE  = "FULL_TIME_REMOTE",  "Full-time Remote"
+    PART_TIME_REMOTE  = "PART_TIME_REMOTE",  "Part-time Remote"
+
+class BranchType(models.TextChoices):               
+    OFFICE = "OFFICE", "Office"
+    STORE  = "STORE",  "Store"
+
 
 class EvalType(models.TextChoices):
     ANNUAL    = "ANNUAL",    "Annual"
@@ -46,11 +56,7 @@ class CompetencyCategory(models.TextChoices):
     LEADERSHIP  = "LEADERSHIP",  "Leadership"
     FUNCTIONAL  = "FUNCTIONAL",  "Functional"
 
-
 # ── Core tables ──────────────────────────────────────────────────────────
-
-
-
 class Company(models.Model):
     company_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name       = models.CharField(max_length=180)
@@ -71,7 +77,54 @@ class Department(models.Model):
     updated_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("company", "name")
+        constraints=[
+            models.UniqueConstraint(fields=["company", "name"], name="uniq_dept_per_company")
+        ]
+        #unique_together = ("company", "name")
+ 
+class SubDepartment(models.Model):
+    sub_department_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name              = models.CharField(max_length=120)
+    employee_count    = models.PositiveIntegerField(default=0)
+    manager           = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="managed_sub_departments", null=True, blank=True)
+    department        = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="sub_departments")
+    created_at        = models.DateTimeField(default=timezone.now)
+    updated_at        = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["department", "name"], name="uniq_subdept_per_dept")
+        ]
+
+
+class Section(models.Model):
+    section_id       = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name             = models.CharField(max_length=120)
+    employee_count   = models.PositiveIntegerField(default=0)
+    manager          = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="managed_sections", null=True, blank=True)
+    sub_department   = models.ForeignKey(SubDepartment, on_delete=models.CASCADE, related_name="sections")
+    created_at       = models.DateTimeField(default=timezone.now)
+    updated_at       = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["sub_department", "name"], name="uniq_section_per_subdept")
+        ]
+
+ 
+class SubSection(models.Model):
+    sub_section_id   = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name             = models.CharField(max_length=120)
+    employee_count   = models.PositiveIntegerField(default=0)
+    manager          = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="managed_sub_sections", null=True, blank=True)
+    section          = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="sub_sections")
+    created_at       = models.DateTimeField(default=timezone.now)
+    updated_at       = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["section", "name"], name="uniq_subsection_per_section")
+        ]
 
 
 class Employee(models.Model):
@@ -84,16 +137,72 @@ class Employee(models.Model):
     user             = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="employee_profile")
     company          = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True)
 
+    employee_code = models.CharField(max_length=120,blank=True,null=True, default=None)
+    warning = models.JSONField(default=list,blank=True) # list of warning strings
+    warning_count = models.PositiveSmallIntegerField(default=0)
+    job_type = models.CharField(max_length=20, choices=JobType.choices, blank=True, null=True,default=JobType.FULL_TIME)
+    location = models.CharField(max_length=180,blank=True) 
+    branch = models.CharField(max_length=20, choices=BranchType.choices, blank=True, null=True, default=BranchType.OFFICE)
+
+    # Legacy fields from old system
     departments = models.ManyToManyField(Department, through="EmployeeDepartment", related_name="employees")
 
+    class Meta:
+         
+        constraints=[
+            models.UniqueConstraint(fields=["company", "employee_code"], 
+                                    name="uniq_client_emp_code_per_company",
+                                    condition=(Q(employee_code__isnull=False)
+                                               & ~Q(employee_code="")) #return list of employees with non-null client_employee_code
+                                    )
+        ]
+        
+        
+    def save(self, *args, **kwargs):
+        # Update warning count before saving
+        try:
+            self.warning_count = len(self.warning or [])
+        except Exception:
+            self.warning_count = 0    
+        super().save(*args,**kwargs)
 
 class EmployeeDepartment(models.Model):
+    #Legacy
     employee   = models.ForeignKey(Employee, on_delete=models.CASCADE)
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
 
     class Meta:
         unique_together = ("employee", "department")
 
+
+class EmployeePlacement(models.Model):
+    placement_id     = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee         = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="employee_placements")
+    company          = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="company_placements")
+    department       = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True, related_name="department_placements")
+    sub_department   = models.ForeignKey(SubDepartment, on_delete=models.CASCADE, null=True, blank=True, related_name="sub_department_placements")
+    section          = models.ForeignKey(Section, on_delete=models.CASCADE, null=True, blank=True, related_name="section_placements")
+    sub_section      = models.ForeignKey(SubSection, on_delete=models.CASCADE, null=True, blank=True, related_name="sub_section_placements")
+    assigned_at      = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        # conditional uniqueness per level
+        constraints = [
+            models.UniqueConstraint(fields=["employee", "department"],     name="uniq_emp_dept",     condition=Q(department__isnull=False)),#return list of employees with non-null department
+            models.UniqueConstraint(fields=["employee", "sub_department"], name="uniq_emp_subdept",  condition=Q(sub_department__isnull=False)),
+            models.UniqueConstraint(fields=["employee", "section"],        name="uniq_emp_section",  condition=Q(section__isnull=False)),
+            models.UniqueConstraint(fields=["employee", "sub_section"],    name="uniq_emp_subsect",  condition=Q(sub_section__isnull=False)),
+            # exactly one of the four location FKs must be non-null
+            models.CheckConstraint(
+                name="exactly_one_org_unit",
+                check=(
+                    (Q(department__isnull=False) & Q(sub_department__isnull=True) & Q(section__isnull=True) & Q(sub_section__isnull=True)) |
+                    (Q(department__isnull=True)  & Q(sub_department__isnull=False) & Q(section__isnull=True) & Q(sub_section__isnull=True)) |
+                    (Q(department__isnull=True)  & Q(sub_department__isnull=True)  & Q(section__isnull=False) & Q(sub_section__isnull=True)) |
+                    (Q(department__isnull=True)  & Q(sub_department__isnull=True)  & Q(section__isnull=True)  & Q(sub_section__isnull=False))
+                )
+            ),
+        ]
 
 # ── Weight configuration ---------------------------------------------------
 class WeightsConfiguration(models.Model):

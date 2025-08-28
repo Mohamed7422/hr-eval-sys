@@ -57,9 +57,9 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",  # optional: enable /refresh + blacklist       
     "drf_spectacular",   # OpenAPI / Swagger
     "accounts",      # user management  
-    "evaluation_app",              # your business logic
+    #"evaluation_app",              # your business logic
     "corsheaders",
-                    
+    "evaluation_app.apps.EvaluationAppConfig" # to load signals
 ]
 
 AUTH_USER_MODEL = "accounts.User"

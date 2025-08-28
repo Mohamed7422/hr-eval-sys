@@ -1,7 +1,8 @@
 from rest_framework import viewsets, filters, status
+from django.db.models import Prefetch
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from evaluation_app.models import Employee
+from evaluation_app.models import Employee,EmployeePlacement
 from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR
 
@@ -65,8 +66,20 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
+        latest_placements = (
+            EmployeePlacement.objects.select_related("company","department","sub_department__department",
+                                                     "section__sub_department__department",
+                                                     "sub_section__section__sub_department__department")
+            .order_by('-assigned_at')
+        )
         user = self.request.user
-        qs   = Employee.objects.select_related('user','company').prefetch_related('departments')
+        qs   = (Employee.objects.select_related('user','company')
+                .prefetch_related(Prefetch(
+            "employee_placements",
+            queryset=latest_placements,
+            to_attr="placements_cache"
+        ))
+        )
 
         if user.role in ('ADMIN','HR'):
             return qs
