@@ -145,7 +145,7 @@ class Employee(models.Model):
     branch = models.CharField(max_length=20, choices=BranchType.choices, blank=True, null=True, default=BranchType.OFFICE)
 
     # Legacy fields from old system
-    departments = models.ManyToManyField(Department, through="EmployeeDepartment", related_name="employees")
+    #departments = models.ManyToManyField(Department, through="EmployeeDepartment", related_name="employees")
 
     class Meta:
          
@@ -188,20 +188,10 @@ class EmployeePlacement(models.Model):
     class Meta:
         # conditional uniqueness per level
         constraints = [
-            models.UniqueConstraint(fields=["employee", "department"],     name="uniq_emp_dept",     condition=Q(department__isnull=False)),#return list of employees with non-null department
-            models.UniqueConstraint(fields=["employee", "sub_department"], name="uniq_emp_subdept",  condition=Q(sub_department__isnull=False)),
-            models.UniqueConstraint(fields=["employee", "section"],        name="uniq_emp_section",  condition=Q(section__isnull=False)),
-            models.UniqueConstraint(fields=["employee", "sub_section"],    name="uniq_emp_subsect",  condition=Q(sub_section__isnull=False)),
-            # exactly one of the four location FKs must be non-null
-            models.CheckConstraint(
-                name="exactly_one_org_unit",
-                check=(
-                    (Q(department__isnull=False) & Q(sub_department__isnull=True) & Q(section__isnull=True) & Q(sub_section__isnull=True)) |
-                    (Q(department__isnull=True)  & Q(sub_department__isnull=False) & Q(section__isnull=True) & Q(sub_section__isnull=True)) |
-                    (Q(department__isnull=True)  & Q(sub_department__isnull=True)  & Q(section__isnull=False) & Q(sub_section__isnull=True)) |
-                    (Q(department__isnull=True)  & Q(sub_department__isnull=True)  & Q(section__isnull=True)  & Q(sub_section__isnull=False))
-                )
-            ),
+            models.UniqueConstraint(
+                fields=["employee"],
+                name="uniq_emp_one_placement_per_employee",
+            )
         ]
 
 # ── Weight configuration ---------------------------------------------------

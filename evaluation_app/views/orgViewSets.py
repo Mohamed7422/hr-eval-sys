@@ -2,19 +2,28 @@ from evaluation_app.serializers.org_serializers import(
     CompanySerializer, DepartmentSerializer, SubDepartmentSerializer, SectionSerializer, SubSectionSerializer, EmployeePlacementSerializer
 )
 from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR, ReadOnlyOrAdminHR,IsAdminOrHR
-from evaluation_app.models import Company, Department, SubDepartment, Section, SubSection, EmployeePlacement
+from evaluation_app.models import Employee, Company, Department, SubDepartment, Section, SubSection, EmployeePlacement, CompanySize
 from rest_framework import viewsets, filters, permissions, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db import transaction
+from pathlib import Path
+import csv
+from io import TextIOWrapper
+from django.shortcuts import get_object_or_404
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None    
+
 
 
 class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all().order_by("name")
     serializer_class = CompanySerializer
     permission_classes = [ReadOnlyOrAdminHR] # read-only for authenticated users, full access for Admin/HR
-    print("CompanyViewSet permissions:", permission_classes)
-
+    #print("CompanyViewSet permissions:", permission_classes)
     filter_backends = [filters.SearchFilter]
     search_fields = ["name", "industry"]
      # … list / create / retrieve / update / destroy are inherited …
@@ -36,6 +45,150 @@ class CompanyViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+    #------------------ Importing At Once Section ------------------
+    
+    @action(
+            detail=False,
+            methods=["post"],
+            url_path="import",  # → /companies/import/
+            permission_classes=[permissions.IsAuthenticated, IsAdminOrHR]
+    )
+    def import_companies(self, request, *args, **kwargs):
+        """
+        Bulk import companies from JSON array or uploaded CSV/XLSX file.
+
+        - JSON: POST array of objects
+        - File: multipart/form-data with 'file'
+        Query params:
+          - dry_run=true     : validate only
+          - update_existing=true : upsert by 'name' (change key below if needed)
+        """
+        dry_run = request.query_params.get("dry_run") == "true"
+        update_existing = request.query_params.get("update_existing") == "true"
+        upsert_on = "name"
+
+        #1) pars rows from JSON or file
+        try:
+            rows = self._parse_payload_to_rows(request)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 2) Normalize values (e.g., size) + keep only model fields
+        cleaned = []
+        for r in rows:
+            item = {
+                 "name": r.get("name") or r.get("Name"),
+                 "industry": r.get("industry") or r.get("Industry"),
+                 "size": self._normalize_size(r.get("size") or r.get("Size")),
+                 "address": r.get("address") or r.get("Address"),
+                #NOTE: 'Description' is ignored because the model has no 'description' field.
+            }
+            cleaned.append(item) 
+
+        # 3) Validate row-by-row to report per-row errors
+        errors = []
+        valid_instances = []
+        
+        for idx, item in enumerate(cleaned, start=1):
+            ser = self.get_serializer(data=item)
+            if ser.is_valid():
+                valid_instances.append(ser.validated_data)
+            else:
+                errors.append({"row": idx, "errors": ser.errors})
+
+        if errors:
+            return Response(
+                {"status": "invalid", "errors": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if dry_run:
+            return Response({"status": "ok", "validated_count_existing": len(valid_instances)})
+
+        # 4) Write to DB (all-or-nothing)
+        created = []
+        updated = []
+        with transaction.atomic():
+            if update_existing:
+                for data in valid_instances:
+                    # upsert by 'upsert_on'
+                    lookup = {upsert_on: data[upsert_on]}
+                    obj, was_created = Company.objects.update_or_create(
+                        defaults=data, **lookup
+                    )
+                    (created if was_created else updated).append(obj)
+            else:
+                objs = [Company(**data) for data in valid_instances]
+                Company.objects.bulk_create(objs)
+                created.extend(objs)
+
+        # 5) Return summary
+        created_data = self.get_serializer(created, many=True).data
+        updated_data = self.get_serializer(updated, many=True).data
+        return Response(
+            {
+                "status": "imported",
+                "created": len(created),
+                "updated": len(updated),
+                "items_created": created_data,
+                "items_updated": updated_data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+    #-------------------------------------------
+    def _parse_payload_to_rows(self, request):
+        """
+        Returns a list[dict] from either:
+        - JSON array body, or
+        - multipart file 'file' with CSV/XLSX.
+        """   
+        if "file" in request.FILES: 
+            f = request.FILES["file"]
+            suffix = Path(f.name).suffix.lower()
+            if suffix == ".csv":
+            # Expect UTF-8 CSV with header row: name,Industry,size,Description,Address
+               text = TextIOWrapper(f.file, encoding="utf-8", newline="")
+               reader = csv.DictReader(text)
+               rows = list(reader)
+               if not rows:
+                   raise ValueError("Uploaded CSV file is empty")
+               return rows  
+            
+            if suffix in {".xlsx", ".xls"}:
+               if openpyxl is None:
+                  raise ValueError("XLSX import requires openpyxl. Install it or upload CSV.")
+               wb = openpyxl.load_workbook(f, read_only=True)
+               ws = wb.active
+               headers = [str(c.value).strip() if c.value is not None else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
+               rows = []
+               for row in ws.iter_rows(min_row=2, values_only=True):
+                   if all(v is None for v in row):
+                        continue
+                   rows.append({headers[i]: row[i] for i in range(len(headers))})
+               if not rows:
+                    raise ValueError("XLSX sheet appears to be empty.")
+               return rows
+
+            raise ValueError("Unsupported file type. Upload CSV or XLSX.")
+        else:
+            data = request.data
+            if not isinstance(data, list):
+                raise ValueError('Expected a JSON array or upload a file as "file".')
+            return data
+
+    def _normalize_size(self, raw):
+        """
+        Accept either the stored value or the display label for CompanySize.
+        Falls back to raw so the serializer can raise a proper choice error if unknown.
+        """
+        if raw is None:
+            return raw
+        s = str(raw).strip()
+        # Map both values and labels (case-insensitive) to stored value
+        value_by_value = {str(v).lower(): v for v, _ in CompanySize.choices}
+        value_by_label = {str(lbl).lower(): v for v, lbl in CompanySize.choices}
+        key = s.lower()
+        return value_by_value.get(key) or value_by_label.get(key) or s
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
@@ -129,14 +282,17 @@ class EmployeePlacementViewSet(viewsets.ModelViewSet):
     )
     serializer_class = EmployeePlacementSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ["employee__user__name","employee__user__email","department__name","sub_department__name","section__name","sub_section__name"]
-
+    search_fields = ["employee__user__name","employee__user__email",
+                     "department__name","sub_department__name","section__name","sub_section__name"]
+    lookup_field = "employee__employee_id"
+    
     def get_permissions(self):
         # Admin/HR can write; everyone authenticated can read
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [ReadOnlyOrAdminHR()]
         return [IsAuthenticated()]
-
+    
+    
     def get_queryset(self):
         u = self.request.user
         qs = super().get_queryset()
@@ -151,3 +307,12 @@ class EmployeePlacementViewSet(viewsets.ModelViewSet):
             ).distinct()
         # employee: only his own placements
         return qs.filter(employee__user=u)
+    
+    def get_object(self):
+        """
+        Resolve by employee_id from URL and return that employee's single placement.
+        """
+        employee_id = self.kwargs[self.lookup_field]
+        employee = get_object_or_404(Employee, employee_id=employee_id)
+        # If you want 404 when not found:
+        return get_object_or_404(EmployeePlacement, employee=employee)

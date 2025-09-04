@@ -2,10 +2,9 @@
 
 from rest_framework import serializers
 from evaluation_app.models import (Employee, Department, Company, ManagerialLevel, EmpStatus, JobType
-                                   , BranchType, SubDepartment, Section, SubSection, EmployeePlacement)
+                                   , BranchType, EmployeePlacement)
 from accounts.models import User
 from accounts.serializers.user_serializer import UserCreateSerializer
-from evaluation_app.serializers.org_serializers import CompanySerializer, DepartmentSerializer
 from evaluation_app.utils import LabelChoiceField
 class EmployeeSerializer(serializers.ModelSerializer):
     # READ: show full user data
@@ -18,7 +17,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
     avatar            = serializers.CharField(source="user.avatar", allow_blank=True, read_only=True)
     role              = LabelChoiceField(source="user.role", 
                                          choices=User._meta.get_field("role").choices,
-                                         required=False)
+                                         required=False,
+                                         read_only=True)
     position          = serializers.CharField(source="user.position", allow_blank=True, read_only=True)
 
 
@@ -35,13 +35,13 @@ class EmployeeSerializer(serializers.ModelSerializer):
     #department      = serializers.SlugRelatedField(source="departments", many=True, slug_field="name", read_only=True)
      # ─────── TIMESTAMPS / DATES ────────────────────────────────────
     join_date         = serializers.DateField(format="%Y-%m-%d")
-    created_at        = serializers.DateTimeField(format="iso‑8601",          read_only=True)
-    updated_at        = serializers.DateTimeField(format="iso‑8601",          read_only=True)
+    created_at        = serializers.DateTimeField(format="iso-8601",          read_only=True)
+    updated_at        = serializers.DateTimeField(format="iso-8601",          read_only=True)
 
      # ─────── PLACEMENT (READ-ONLY) ─────────────────────
     #placement  = serializers.SerializerMethodField()
     org_path   = serializers.SerializerMethodField()
-    direct_manager = serializers.SerializerMethodField(source="get_direct_manager")
+    direct_manager = serializers.SerializerMethodField()
 
     # still expose the raw IDs if the front‑end needs them
     company_id = serializers.PrimaryKeyRelatedField(
@@ -68,14 +68,17 @@ class EmployeeSerializer(serializers.ModelSerializer):
     )
  
     
-    # Reassign departments by IDs
-    departments_ids = serializers.PrimaryKeyRelatedField(
-        source="departments",
-        many=True,
+    # NEW: single department on create (write-only)
+    department_id  = serializers.PrimaryKeyRelatedField(
+        source="__seed_department", # virtual holder; not a real model field
         queryset=Department.objects.all(),
         write_only=True,
         required=False,
+        allow_null=True,
     )
+
+    # read-only fields derived from placement
+    department = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model  = Employee
         fields = [
@@ -90,18 +93,23 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "company_name","org_path","direct_manager",
             "join_date","created_at","updated_at",
 
+            # read-only
+            "department",
+
             # write‑only
             "user_id","user_data",
             "company_id",
-            "departments_ids", #deprecated
+            "department_id", 
             "job_type","location","branch",
+            
         ]
         read_only_fields = ("employee_id",)
 
-    #def get_department(self, obj):
-       #     name = obj.departments.all().values_list("name", flat=True)
-       #     return ", ".join(name) # e.g. "Dev, QA, HR"
-        
+    def get_department(self, obj): 
+        # return the department of the first placement if any
+        p = self._latest_placement(obj)
+        return p.department.name if p and p.department else None
+     
     # ---------- Placement helpers ----------
     def _latest_placement(self, obj):
         # use prefetch cache if present
@@ -219,22 +227,36 @@ class EmployeeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Either ‘user_id’ or full ‘user_data’ must be provided."
             )
-        company = validated_data.pop("company") 
-        departments = validated_data.pop("departments", [])
+        
+        # pull seed inputs
+        company = validated_data.pop("company", None) 
+        seed_dept  = validated_data.pop("__seed_department", None)
+        # Derive company from department if missing
+        if company is None and seed_dept is not None:
+            company = seed_dept.company
+
         employee = Employee.objects.create(
             user=user,
             company=company,
             **validated_data
         )   
-        if departments:
-            employee.departments.set(departments)
+        # auto-create the initial placement (employee + company [+ department])
+        if company is not None:
+            if seed_dept and seed_dept.company_id != company.pk:
+                raise serializers.ValidationError("department_id does not belong to the provided/derived company.")
+            EmployeePlacement.objects.get_or_create(
+                employee=employee,
+                defaults={"company": company, "department": seed_dept or None}
+            )
 
-        return employee    
+        return employee
 
 
     def update(self, instance, validated_data):
         print("DEBUG validated_data:", validated_data) 
-   
+        # ignore any seed dept on update
+        validated_data.pop("__seed_department", None)
+        
         # 1) nested user update?
         user_payload = validated_data.pop("user", None)
         if user_payload:
@@ -247,10 +269,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             user_serializer.is_valid(raise_exception=True)
             user_serializer.save()
          
-        # 2) m2m departments?
-        if "departments" in validated_data:
-            instance.departments.set(validated_data.pop("departments"))
-
+        
         # 3) let DRF handle the rest (company_id, phone, avatar, managerial_level, status…)
         return super().update(instance, validated_data)
 
