@@ -16,7 +16,8 @@ try:
     import openpyxl
 except ImportError:
     openpyxl = None 
-
+    
+from django_filters.rest_framework import DjangoFilterBackend
 from evaluation_app.services.hierarchy_importer import parse_hierarchy_rows, import_hierarchy_paths
 
 
@@ -222,8 +223,11 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    filter_backends = [filters.SearchFilter, filters.SearchFilter]
-    filterset_fields = ["company"]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = {
+        "company": ["exact"],
+        "company_id": ["exact"],
+    }
     search_fields = ["name"]
 
     @action(
@@ -269,7 +273,13 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 class SubDepartmentViewSet(viewsets.ModelViewSet):
     queryset = SubDepartment.objects.select_related("department", "manager")
     serializer_class = SubDepartmentSerializer
-    filter_backends  = [filters.SearchFilter]
+    filter_backends  = [DjangoFilterBackend,filters.SearchFilter]
+    filterset_fields = {
+        "department": ["exact"],
+        "department_id": ["exact"],
+        "department__company": ["exact"],
+        "department__company_id": ["exact"],
+    }
     search_fields   = ["name", "department__name"]
 
     def get_permissions(self):
@@ -281,8 +291,16 @@ class SubDepartmentViewSet(viewsets.ModelViewSet):
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.select_related("sub_department","manager")
     serializer_class = SectionSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ["name","sub_department__name"]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = {
+        "sub_department": ["exact"],                          # ?sub_department=<uuid>
+        "sub_department_id": ["exact"],                       # ?sub_department_id=<uuid>
+        "sub_department__department": ["exact"],              # ?sub_department__department=<uuid>
+        "sub_department__department_id": ["exact"],           # ?sub_department__department_id=<uuid>
+        "sub_department__department__company": ["exact"],     # ?sub_department__department__company=<uuid>
+        "sub_department__department__company_id": ["exact"],  # ?sub_department__department__company_id=<uuid>
+    }
+    search_fields = ["name", "sub_department__name"]
 
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
@@ -292,7 +310,16 @@ class SectionViewSet(viewsets.ModelViewSet):
 class SubSectionViewSet(viewsets.ModelViewSet):
     queryset = SubSection.objects.select_related("section","manager")
     serializer_class = SubSectionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend,filters.SearchFilter]
+    filterset_fields = {
+        "section": ["exact"],                                      # ?section=<uuid>
+        "section_id": ["exact"],                                   # ?section_id=<uuid>
+        "section__sub_department": ["exact"],                      # ?section__sub_department=<uuid>
+        "section__sub_department_id": ["exact"],                   # ?section__sub_department_id=<uuid>
+        "section__sub_department__department": ["exact"],          # ?section__sub_department__department=<uuid>
+        "section__sub_department__department_id": ["exact"],       # ?section__sub_department__department_id=<uuid>
+        "section__sub_department__department__company_id": ["exact"],  # ?section__sub_department__department__company_id=<uuid>
+    }
     search_fields = ["name","section__name"]
 
     def get_permissions(self):

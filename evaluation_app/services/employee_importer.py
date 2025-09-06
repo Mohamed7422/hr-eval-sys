@@ -19,8 +19,9 @@ from evaluation_app.serializers import employee_serilized  # local import to avo
 from evaluation_app.models import (
     Company, Department, Employee,
     # enums below must exist in your project
-    ManagerialLevel, EmpStatus, JobType, BranchType, Gender, Role  # adjust import
+    ManagerialLevel, EmpStatus, JobType, BranchType  # adjust import
 )
+from accounts.models import User, Role, Gender  # adjust import
 
 User = get_user_model()
 

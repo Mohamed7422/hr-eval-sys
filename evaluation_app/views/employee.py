@@ -1,11 +1,12 @@
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters, status, permissions
 from django.db.models import Prefetch
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from evaluation_app.models import Employee,EmployeePlacement
 from evaluation_app.serializers.employee_serilized import EmployeeSerializer
-from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR
-
+from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR, IsAdminOrHR
+from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
 
 class EmployeeViewSet(viewsets.ModelViewSet):
 
@@ -99,3 +100,29 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         return Response(
             {"message": "Employee deleted successfully."}, status=status.HTTP_200_OK
         )   
+    
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="import",
+        permission_classes=[permissions.IsAuthenticated, IsAdminOrHR],
+    )
+    def import_employees(self, request, *args, **kwargs):
+        dry_run = request.query_params.get("dry_run") == "true"
+        update_existing = request.query_params.get("update_existing", "true").lower() == "true"
+        upsert_by_code = request.query_params.get("upsert_by_code", "true").lower() == "true"
+
+        try:
+            rows = parse_employee_rows(request)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = import_employees(rows, dry_run=dry_run,
+                                  update_existing=update_existing,
+                                  upsert_by_code=upsert_by_code)
+
+        if result.get("status") == "invalid":
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(result,
+                        status=status.HTTP_200_OK if result["status"] == "ok" else status.HTTP_201_CREATED)
