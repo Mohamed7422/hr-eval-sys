@@ -2,7 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from io import TextIOWrapper
-import csv, re, unicodedata
+import csv, re
 from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime, date
 
@@ -14,7 +14,7 @@ except ImportError:
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from evaluation_app.serializers import employee_serilized  # local import to avoid cycles
+from evaluation_app.serializers.employee_serilized import EmployeeSerializer  # local import to avoid cycles
 
 from evaluation_app.models import (
     Company, Department, Employee,
@@ -136,17 +136,29 @@ def import_employees(rows: List[Dict[str, Any]], *, dry_run: bool = False,
         elif upsert_by_code and row.get("employee_code"):
             employee = employees_by_code.get((company.name, row["employee_code"]))
 
-        payload_emp, payload_user = _build_payloads(row, company, dept_obj, taken_usernames)
+        emp_payload, user_payload = _build_payloads(row, company, dept_obj, taken_usernames)
 
         if dry_run:
             continue  # Only validating structure; real field validity is enforced in serializer at commit-time
 
         if employee:
-            # Update existing employee + user
-            to_update.append((employee, {"user": payload_user, **payload_emp}))
+            # UPDATE: patch employee + user, NO password
+            data = dict(emp_payload)
+            data.pop("user_data", None)      # don't use create-only field on update
+            data["user"] = user_payload      # EmployeeSerializer.update() expects 'user'
+            to_update.append((employee, data)) 
+        elif user:
+            # CREATE new Employee bound to EXISTING user (no password change)
+           data = dict(emp_payload)
+           data.pop("user_data", None)      # we aren't creating a user
+           data["user_id"] = str(user.pk)   # attach by ID
+           to_create.append(data)
         else:
-            # Create new employee + user
-            to_create.append({"user": payload_user, **payload_emp})
+           # CREATE brand-new User + Employee → set default password
+           data = dict(emp_payload)
+           data.setdefault("user_data", user_payload)
+           data["user_data"]["password"] = "defaultpassword123"  # default password for new users
+           to_create.append(data)
 
     if row_errors:
         return {"status": "invalid", "errors": row_errors}
@@ -161,7 +173,7 @@ def import_employees(rows: List[Dict[str, Any]], *, dry_run: bool = False,
     with transaction.atomic():
         # Create
         for data in to_create:
-            ser = employee_serilized(data=data)
+            ser = EmployeeSerializer(data=data)
             if ser.is_valid():
                 ser.save()
                 created += 1
@@ -171,7 +183,7 @@ def import_employees(rows: List[Dict[str, Any]], *, dry_run: bool = False,
 
         # Update
         for instance, data in to_update:
-            ser = employee_serilized(instance, data=data, partial=True)
+            ser = EmployeeSerializer(instance, data=data, partial=True)
             if ser.is_valid():
                 ser.save()
                 updated += 1
@@ -213,15 +225,63 @@ def _parse_date(value) -> Optional[str]:
     # last resort: let serializer fail with a clear message
     return s
 
-def _norm_choice(value, choices) -> Optional[str]:
-    """Accept value or label (case-insensitive). Return stored value or None."""
+def _norm_choice(value, choices, aliases=None):
+    """
+    Accept either stored values, labels, or loose variants (spaces/hyphens ignored).
+    `aliases` lets you add custom synonyms like "full time" -> FULL_TIME.
+    """
     if value is None or value == "":
         return None
-    s = str(value).strip()
-    by_val = {str(v).lower(): v for v, _ in choices}
-    by_lbl = {str(lbl).lower(): v for v, lbl in choices}
-    key = s.lower()
-    return by_val.get(key) or by_lbl.get(key) or s  # let serializer complain if unknown
+    key = _norm_key(value)
+    table = {}
+    # stored values
+    for v, lbl in choices:
+        table[_norm_key(v)] = v
+        table[_norm_key(lbl)] = v
+    # custom aliases
+    if aliases:
+        for alias, real in aliases.items():
+            table[_norm_key(alias)] = real
+    return table.get(key, value)  # fall through: let serializer complain if still unknown
+
+JOBTYPE_ALIASES = {
+    "full time": JobType.FULL_TIME,
+    "fulltime": JobType.FULL_TIME,
+    "part time": JobType.PART_TIME,
+    "parttime": JobType.PART_TIME,
+    "full time remote": JobType.FULL_TIME_REMOTE,
+    "remote full time": JobType.FULL_TIME_REMOTE,
+    "full remote": JobType.FULL_TIME_REMOTE,
+    "part time remote": JobType.PART_TIME_REMOTE,
+    "remote part time": JobType.PART_TIME_REMOTE,
+}
+
+STATUS_ALIASES = {
+    "defaultactive": EmpStatus.DEFAULT,   # in case sheet says "Default Active"
+    "default active": EmpStatus.DEFAULT,
+    "active": EmpStatus.ACTIVE,
+    "inactive": EmpStatus.INACTIVE,
+}
+
+MANAGERIAL_ALIASES = {
+    "ic": ManagerialLevel.IC,
+    "individual contributor": ManagerialLevel.IC,
+    "supervisory": ManagerialLevel.SUPERVISORY,
+    "middle": ManagerialLevel.MIDDLE,
+    "middle management": ManagerialLevel.MIDDLE,
+}
+
+BRANCH_ALIASES = {
+    "office": BranchType.OFFICE,
+    "store": BranchType.STORE,
+}
+
+GENDER_ALIASES = {
+    "m": Gender.MALE,
+    "male": Gender.MALE,
+    "f": Gender.FEMALE,
+    "female": Gender.FEMALE,
+}
 
 def _clean_and_normalize(rows: List[Dict[str, Any]]):
     def pick(d, *keys):
@@ -258,13 +318,12 @@ def _clean_and_normalize(rows: List[Dict[str, Any]]):
         # Post-process
         row["join_date"] = _parse_date(row["join_date"])
         # normalize choices
-        row["role"] = _norm_choice(row["role"], Role.choices)
-        row["managerial_level"] = _norm_choice(row["managerial_level"], ManagerialLevel.choices)
-        row["status"] = _norm_choice(row["status"], EmpStatus.choices)
-        row["job_type"] = _norm_choice(row["job_type"], JobType.choices)
-        row["branch"] = _norm_choice(row["branch"], BranchType.choices)
-        row["gender"] = _norm_choice(row["gender"], Gender.choices)
-
+        row["role"]             = _norm_choice(row["role"], User._meta.get_field("role").choices)  # labels/values both OK
+        row["managerial_level"] = _norm_choice(row["managerial_level"], ManagerialLevel.choices, MANAGERIAL_ALIASES)
+        row["status"]           = _norm_choice(row["status"], EmpStatus.choices, STATUS_ALIASES)
+        row["job_type"]         = _norm_choice(row["job_type"], JobType.choices, JOBTYPE_ALIASES)
+        row["branch"]           = _norm_choice(row["branch"], BranchType.choices, BRANCH_ALIASES)
+        row["gender"]           = _norm_choice(row["gender"], Gender.choices, GENDER_ALIASES)
         cleaned.append(row)
 
         if row["company_name"]:
@@ -325,3 +384,7 @@ def _build_payloads(row, company: Company, dept: Optional[Department], taken_use
         "user_data": user_payload,
     }
     return emp_payload, user_payload
+
+def _norm_key(s: str) -> str:
+    # normalize strings for matching: lowercase & strip all non-alphanumerics
+    return re.sub(r'[^a-z0-9]+', '', str(s).lower())

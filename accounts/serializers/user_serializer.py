@@ -19,9 +19,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ("user_id", "created_at", "updated_at")  # user_id is auto-generated
 
     def create(self, validated_data):  # called by viewset
-        password = validated_data.pop("password")
+        password = validated_data.pop("password","defaultpassword123")  # default if not supplied
         user = User(**validated_data)
-        user.set_password(password)          # 🔑 hashes!
+        user.set_password(password)          # hash the password
         user.save()
         return user 
 
