@@ -9,8 +9,7 @@ class ObjectiveSerializer(serializers.ModelSerializer):
     objective_id   = serializers.UUIDField(read_only=True)
     evaluation_id  = serializers.PrimaryKeyRelatedField(
         source="evaluation",
-        queryset=Evaluation.objects.all(),
-        write_only=True
+        queryset=Evaluation.objects.all()
     )
      
     employee_id = serializers.UUIDField(
