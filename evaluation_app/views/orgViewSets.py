@@ -15,7 +15,9 @@ from django.shortcuts import get_object_or_404
 try:
     import openpyxl
 except ImportError:
-    openpyxl = None    
+    openpyxl = None 
+
+from evaluation_app.services.hierarchy_importer import parse_hierarchy_rows, import_hierarchy_paths
 
 
 
@@ -46,6 +48,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     #------------------ Importing At Once Section ------------------
+
     
     @action(
             detail=False,
@@ -189,6 +192,29 @@ class CompanyViewSet(viewsets.ModelViewSet):
         value_by_label = {str(lbl).lower(): v for v, lbl in CompanySize.choices}
         key = s.lower()
         return value_by_value.get(key) or value_by_label.get(key) or s
+    # ──────────────────────────────────────────────────────────────────────────────
+    # Bulk import of full hierarchy paths
+    # ──────────────────────────────────────────────────────────────────────────────
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="import-hierarchy",
+        permission_classes=[permissions.IsAuthenticated, IsAdminOrHR],
+    )
+    def import_hierarchy(self, request, *args, **kwargs):
+        dry_run = request.query_params.get("dry_run") == "true"
+        try:
+            rows = parse_hierarchy_rows(request)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = import_hierarchy_paths(rows, dry_run=dry_run)
+
+        if result.get("status") == "invalid":
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+        http_status = status.HTTP_200_OK if result["status"] == "ok" else status.HTTP_201_CREATED
+        return Response(result, status=http_status)
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):

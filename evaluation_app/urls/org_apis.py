@@ -9,7 +9,7 @@ router.register("companies", CompanyViewSet, basename="company")  # GET /api/org
 router.register("departments", DepartmentViewSet, basename="department")  # GET  /api/org/departments/
 router.register("sub-departments", SubDepartmentViewSet, basename="sub-departments") 
 router.register("sections", SectionViewSet, basename="sections")
-router.register("sub-sections", SubSectionViewSet, basename="sub-sections")
+router.register("sub-sections", SubSectionViewSet, basename="sub-sections") # GET /api/org/sub-sections/
 router.register("placements", EmployeePlacementViewSet, basename="placements")# GET /api/org/placements/
 
 urlpatterns = router.urls
