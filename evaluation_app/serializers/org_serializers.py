@@ -90,7 +90,7 @@ class SubSectionSerializer(serializers.ModelSerializer):
 class EmployeePlacementSerializer(serializers.ModelSerializer):
     # Write
     employee_id       = serializers.PrimaryKeyRelatedField(
-        source="employee", queryset=Employee.objects.all()
+        source="employee", queryset=Employee.objects.all(),required=False
     )
     department_id     = serializers.PrimaryKeyRelatedField(
         source="department", queryset=Department.objects.all(),
@@ -137,27 +137,25 @@ class EmployeePlacementSerializer(serializers.ModelSerializer):
         )
         validators = []  # disable the default unique_together validator
     
-
+    # --- helpers ---
+    def _coerce_blanks(self, attrs):
+        for k in ("department", "sub_department", "section", "sub_section"):
+            if k in attrs and attrs[k] == "":
+                attrs[k] = None
     # ----- lineage normalization helpers -----
     def _normalize_lineage(self, attrs):
-        """
-        Accepts any subset of {department, sub_department, section, sub_section}.
-        - If deeper levels are provided, derive missing parents.
-        - Returns a full tuple: (department, sub_department, section, sub_section)
-        - Raises ValidationError on inconsistent lineage.
-        """
-        dep = attrs.get("department")
-        sub = attrs.get("sub_department")
-        sec = attrs.get("section")
+        self._coerce_blanks(attrs)
+
+        dep  = attrs.get("department")
+        sdep = attrs.get("sub_department")
+        sec  = attrs.get("section")
         ssec = attrs.get("sub_section")
 
-        #From deepest to parent
-
-         # From deepest to parent
+        # deepest -> parent
         if ssec:
-            sec_from_ssec = ssec.section
-            sdep_from_sec = sec_from_ssec.sub_department if sec_from_ssec else None
-            dep_from_sdep = sdep_from_sec.department if sdep_from_sec else None
+            sec_from_ssec  = ssec.section
+            sdep_from_sec  = sec_from_ssec.sub_department if sec_from_ssec else None
+            dep_from_sdep  = sdep_from_sec.department     if sdep_from_sec else None
             if sec and sec != sec_from_ssec:
                 raise serializers.ValidationError("sub_section_id does not belong to the provided section_id.")
             sec  = sec or sec_from_ssec
@@ -184,82 +182,67 @@ class EmployeePlacementSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("sub_department_id does not belong to the provided department_id.")
             dep = dep or dep_from_sdep
 
-        # Any combination is allowed now; at least one level is optional.
         return dep, sdep, sec, ssec
     
     def validate(self, attrs):
+        
         employee = attrs.get("employee") or getattr(self.instance, "employee", None)
         if not employee:
             raise serializers.ValidationError("employee_id is required.")
 
-        # Normalize/full lineage from what user sent
         dep, sdep, sec, ssec = self._normalize_lineage(attrs)
 
-        # Enforce company consistency
         company = employee.company
         if not company:
             raise serializers.ValidationError("Employee has no company set; cannot place.")
 
-        # Everything must be in the same company as employee
-        for unit, label in [(dep, "department"), (sdep, "sub_department"), (sec, "section"), (ssec, "sub_section")]:
-            if unit:
-                unit_company = (
-                    unit.company if hasattr(unit, "company")
-                    else unit.department.company if hasattr(unit, "department")
-                    else unit.sub_department.company if hasattr(unit, "sub_department")
-                    else unit.section.sub_department.department.company if hasattr(unit, "section")
-                    else None
-                )
-                if unit_company and unit_company != company:
-                    raise serializers.ValidationError(f"{label} belongs to a different company than the employee.")
+        # company consistency check
+        def unit_company(u):
+            if u is None: return None
+            if hasattr(u, "company"): return u.company                    # department
+            if hasattr(u, "department"): return u.department.company      # sub_department
+            if hasattr(u, "sub_department"): return u.sub_department.department.company  # section
+            if hasattr(u, "section"): return u.section.sub_department.department.company # sub_section
+            return None
 
-        # Put normalized lineage back so create/update can use it
+        for unit, label in [(dep, "department"), (sdep, "sub_department"), (sec, "section"), (ssec, "sub_section")]:
+            uc = unit_company(unit)
+            if uc and uc != company:
+                raise serializers.ValidationError(f"{label} belongs to a different company than the employee.")
+
         attrs["department"]     = dep
         attrs["sub_department"] = sdep
         attrs["section"]        = sec
         attrs["sub_section"]    = ssec
-        attrs["company"]        = company  # set implicitly; not exposed in API
-
+        attrs["company"]        = company
         return attrs
-     # ----- upsert behavior (one placement per employee) -----
+
+    # one row per employee (upsert)
     def create(self, validated_data):
         employee = validated_data["employee"]
-        company  = validated_data["company"]
-        dep      = validated_data.get("department")
-        sdep     = validated_data.get("sub_department")
-        sec      = validated_data.get("section")
-        ssec     = validated_data.get("sub_section")
-
         placement, created = EmployeePlacement.objects.get_or_create(
             employee=employee,
             defaults={
-                "company": company,
-                "department": dep,
-                "sub_department": sdep,
-                "section": sec,
-                "sub_section": ssec,
+                "company":        validated_data["company"],
+                "department":     validated_data.get("department"),
+                "sub_department": validated_data.get("sub_department"),
+                "section":        validated_data.get("section"),
+                "sub_section":    validated_data.get("sub_section"),
             },
         )
         if not created:
-            # Update existing (the unique(employee) constraint means there’s only one)
-            placement.company       = company
-            placement.department    = dep
-            placement.sub_department= sdep
-            placement.section       = sec
-            placement.sub_section   = ssec
-            placement.save(update_fields=["company","department","sub_department","section","sub_section","updated_at"] if hasattr(placement, "updated_at") else ["company","department","sub_department","section","sub_section"])
-
+            for f in ("company","department","sub_department","section","sub_section"):
+                if f in validated_data:
+                    setattr(placement, f, validated_data.get(f))
+            placement.save()
         return placement
 
     def update(self, instance, validated_data):
-        # Allow clearing or setting any level
-        for fld in ["department","sub_department","section","sub_section"]:
-            if fld in validated_data:
-                setattr(instance, fld, validated_data.get(fld))
-
-        # company is always taken from employee.company
+        for f in ("department","sub_department","section","sub_section"):
+            if f in validated_data:
+                setattr(instance, f, validated_data.get(f))
         instance.company = instance.employee.company
-        instance.save(update_fields=["company","department","sub_department","section","sub_section","assigned_at"])
+        instance.save()
         return instance
     
 # ------------- Importing At Once Section ------------------

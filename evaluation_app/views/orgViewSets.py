@@ -310,7 +310,7 @@ class EmployeePlacementViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["employee__user__name","employee__user__email",
                      "department__name","sub_department__name","section__name","sub_section__name"]
-    lookup_field = "employee__employee_id"
+    lookup_field = "employee_id"  # to resolve by employee_id from URL
     
     def get_permissions(self):
         # Admin/HR can write; everyone authenticated can read
@@ -342,3 +342,19 @@ class EmployeePlacementViewSet(viewsets.ModelViewSet):
         employee = get_object_or_404(Employee, employee_id=employee_id)
         # If you want 404 when not found:
         return get_object_or_404(EmployeePlacement, employee=employee)
+    
+    def partial_update(self, request, *args, **kwargs):
+        # Normalize body ("" -> null), inject employee_id from URL
+        data = request.data.copy()
+        for k in ("department_id", "sub_department_id", "section_id", "sub_section_id"):
+            if k in data and (data[k] == "" or data[k] is None):
+                data[k] = None
+
+        employee_id = self.kwargs[self.lookup_field]
+        data["employee_id"] = employee_id
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data, status=status.HTTP_200_OK)
