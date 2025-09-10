@@ -12,6 +12,8 @@ from pathlib import Path
 import csv
 from io import TextIOWrapper
 from django.shortcuts import get_object_or_404
+from evaluation_app.services.placement_levels_importer import parse_levels_rows, import_levels
+from rest_framework.parsers import MultiPartParser, JSONParser, FormParser
 try:
     import openpyxl
 except ImportError:
@@ -222,6 +224,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.select_related("company", "manager")
     serializer_class = DepartmentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, JSONParser, FormParser]
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = {
@@ -385,3 +388,37 @@ class EmployeePlacementViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    # ---bulk placements---
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="import-levels",   # -> POST /api/employee-placements/import-levels/
+        permission_classes=[permissions.IsAuthenticated, IsAdminOrHR],
+    )
+    def import_levels_action(self, request, *args, **kwargs):
+        """
+        Bulk placement of hierarchy levels by Emp Code + names.
+        Query params:
+          - dry_run=true
+          - effective=YYYY-MM-DD  (optional; sets assigned_at)
+        Body:
+          - form-data: file=<CSV|XLSX>  OR
+          - application/json: array of rows
+        """
+        dry_run = request.query_params.get("dry_run") == "true"
+        effective = request.query_params.get("effective")  # optional
+
+        try:
+            rows = parse_levels_rows(request)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = import_levels(rows, dry_run=dry_run, effective=effective)
+        if result.get("status") == "invalid":
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            result,
+            status=status.HTTP_200_OK if result["status"] == "ok" else status.HTTP_201_CREATED,
+        )

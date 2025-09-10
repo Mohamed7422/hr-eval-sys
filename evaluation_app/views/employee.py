@@ -8,6 +8,8 @@ from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR, IsAdminOrHR
 from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
 
+
+
 class EmployeeViewSet(viewsets.ModelViewSet):
 
     """
@@ -22,6 +24,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]  # default fallback
     filter_backends = [filters.SearchFilter]
     search_fields = ['user__name', 'user__email']
+    
      
     
     def get_permissions(self):
@@ -126,3 +129,5 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
         return Response(result,
                         status=status.HTTP_200_OK if result["status"] == "ok" else status.HTTP_201_CREATED)
+    
+    
