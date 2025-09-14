@@ -6,6 +6,8 @@ from evaluation_app.models import (Employee, Department, Company, ManagerialLeve
 from accounts.models import User
 from accounts.serializers.user_serializer import UserCreateSerializer
 from evaluation_app.utils import LabelChoiceField
+ 
+ 
 class EmployeeSerializer(serializers.ModelSerializer):
     # READ: show full user data
     #user = UserCreateSerializer(read_only=True)
@@ -133,26 +135,33 @@ class EmployeeSerializer(serializers.ModelSerializer):
         dept = sdep = sec = ssec = None
         level = None
 
-        if p.department_id:
-            level, dept = "department", p.department
-        elif p.sub_department_id:
-            level, sdep = "sub_department", p.sub_department
-            dept = sdep.department if sdep else None
-        elif p.section_id:
-            level, sec = "section", p.section
-            sdep = sec.sub_department if sec else None
-            dept = sdep.department if sdep else None
-        elif p.sub_section_id:
-            level, ssec = "sub_section", p.sub_section
-            sec  = ssec.section if ssec else None
-            sdep = sec.sub_department if sec else None
-            dept = sdep.department if sdep else None
+        if p.sub_section_id:
+            level = "sub_section"
+            ssec  = p.sub_section
+            sec   = ssec.section if ssec else None
+            sdep  = sec.sub_department if sec else None
+            dept  = sdep.department if sdep else None
 
-        # who is the LM for this unit?
+        elif p.section_id:
+            level = "section"
+            sec   = p.section
+            sdep  = sec.sub_department if sec else None
+            dept  = sdep.department if sdep else None
+
+        elif p.sub_department_id:
+            level = "sub_department"
+            sdep  = p.sub_department
+            dept  = sdep.department if sdep else None
+
+        elif p.department_id:
+            level = "department"
+            dept  = p.department
+
+    # choose the direct manager for the deepest available unit
         lm = (ssec.manager if ssec else
-              sec.manager if sec else
-              sdep.manager if sdep else
-              dept.manager if dept else None)
+          sec.manager  if sec  else
+          sdep.manager if sdep else
+          dept.manager if dept else None)
 
         return level, dept, sdep, sec, ssec, lm
 
@@ -182,18 +191,16 @@ class EmployeeSerializer(serializers.ModelSerializer):
             ),
         }
 
+    
+    
+
     def get_org_path(self, obj):
         p = self._latest_placement(obj)
         if not p:
             return ""
-        level, dept, sdep, sec, ssec, _ = self._resolve_lineage(p)
-        parts = [x for x in [
-            dept.name if dept else None,
-            sdep.name if sdep else None,
-            sec.name  if sec  else None,
-            ssec.name if ssec else None,
-        ] if x]
-        return " › ".join(parts)
+        _, dept, sdep, sec, ssec, _ = self._resolve_lineage(p)
+          
+        return " › ".join(u.name for u in (dept, sdep, sec, ssec) if u)
 
     def get_direct_manager(self, obj):
         p = self._latest_placement(obj)
