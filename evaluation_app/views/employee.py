@@ -117,10 +117,13 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
         try:
             rows = parse_employee_rows(request)
-        except ValueError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import logging 
+            logging.getLogger("django.request").exception("Employee import failed")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        result = import_employees(rows, dry_run=dry_run,
+        result = import_employees(rows, 
+                                  dry_run=dry_run,
                                   update_existing=update_existing,
                                   upsert_by_code=upsert_by_code)
 
@@ -128,6 +131,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(result,
-                        status=status.HTTP_200_OK if result["status"] == "ok" else status.HTTP_201_CREATED)
+                        status=status.HTTP_200_OK if dry_run else status.HTTP_201_CREATED)
     
     

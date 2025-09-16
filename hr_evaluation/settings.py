@@ -39,7 +39,7 @@ DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 #ALLOWED_HOSTS = ['688463552f41.ngrok-free.app', 'localhost', '127.0.0.1']
 ALLOWED_HOSTS = ["*"]
 print("🔒 ALLOWED_HOSTS =", ALLOWED_HOSTS)
- 
+APPEND_SLASH = False
 # Application definition
 
 raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")

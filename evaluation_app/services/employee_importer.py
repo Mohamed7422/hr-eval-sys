@@ -5,6 +5,7 @@ from io import TextIOWrapper
 import csv, re
 from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime, date
+from difflib import get_close_matches
 
 try:
     import openpyxl
@@ -110,14 +111,15 @@ def import_employees(rows: List[Dict[str, Any]], *, dry_run: bool = False,
         employees_by_code = {(e.company.name if e.company else "", e.employee_code): e for e in employees}
 
     # Prepare create/update plans
-    to_create: List[Dict[str, Any]] = []
-    to_update: List[Tuple[Employee, Dict[str, Any]]] = []
+    to_create: List[Tuple[int, Dict[str, Any]]] = []
+    to_update: List[Tuple[int, Employee, Dict[str, Any]]] = []
 
     # Also keep track of usernames to avoid duplicates when creating Users
     taken_usernames = set(User.objects.filter(username__in=[_username_from_email(e) for e in emails]).values_list("username", flat=True))
 
     row_errors = []
     for row in cleaned:
+        row_no = row["__row"]
         company = companies[row["company_name"]]
         # Department resolution (optional)
         dept_obj = None
@@ -138,57 +140,77 @@ def import_employees(rows: List[Dict[str, Any]], *, dry_run: bool = False,
 
         emp_payload, user_payload = _build_payloads(row, company, dept_obj, taken_usernames)
 
-        if dry_run:
-            continue  # Only validating structure; real field validity is enforced in serializer at commit-time
+       # if dry_run: (no more needed)
+       #     continue  # Only validating structure; real field validity is enforced in serializer at commit-time 
 
         if employee:
             # UPDATE: patch employee + user, NO password
             data = dict(emp_payload)
             data.pop("user_data", None)      # don't use create-only field on update
             data["user"] = user_payload      # EmployeeSerializer.update() expects 'user'
-            to_update.append((employee, data)) 
+            to_update.append((row_no, employee, data)) 
         elif user:
             # CREATE new Employee bound to EXISTING user (no password change)
            data = dict(emp_payload)
            data.pop("user_data", None)      # we aren't creating a user
            data["user_id"] = str(user.pk)   # attach by ID
-           to_create.append(data)
+           to_create.append((row_no, data))
         else:
            # CREATE brand-new User + Employee → set default password
            data = dict(emp_payload)
            data.setdefault("user_data", user_payload)
            data["user_data"]["password"] = "defaultpassword123"  # default password for new users
-           to_create.append(data)
+           to_create.append((row_no,data))
 
     if row_errors:
         return {"status": "invalid", "errors": row_errors}
+    
+    # ---------- PRE-VALIDATION (works for dry_run and commit) ----------
+    validation_errors = []
+    # Validate creates
+    for row_no, data in to_create:
+        ser = EmployeeSerializer(data=data)
+        if not ser.is_valid():
+            validation_errors.append({"row": row_no, "errors": _pretty_errors(ser.errors, data)})
 
+
+    # Validate updates
+    for row_no, instance, data in to_update:     
+        ser = EmployeeSerializer(instance, data=data, partial=True)
+        if not ser.is_valid():
+            validation_errors.append({"row": row_no, "errors": _pretty_errors(ser.errors, data)})   
+
+    if validation_errors:
+        return{
+            "status": "invalid",
+            "errors": validation_errors,
+            "accepted_values": _accepted_values_hint(),
+        }     
+       
     if dry_run:
-        return {"status": "ok", "validated_count": len(cleaned)}
-
-    created = 0
-    updated = 0
+        return {"status": "imported", 
+                "validated_count": len(cleaned),
+                "to_create": len(to_create),
+                "to_update": len(to_update),}
+    
+    # ---------- COMMIT ----------
+    created = updated = 0
 
     # Write all in a transaction
     with transaction.atomic():
         # Create
-        for data in to_create:
+        for _, data in to_create:
             ser = EmployeeSerializer(data=data)
-            if ser.is_valid():
-                ser.save()
-                created += 1
-            else:
-                # surface the first error with a pseudo-row index if desired
-                raise ValueError(f"Validation failed while creating: {ser.errors}")
+            ser.is_valid(raise_exception=True) # should always be valid here
+            ser.save()
+            created += 1
 
         # Update
-        for instance, data in to_update:
+        for _, instance, data in to_update:
             ser = EmployeeSerializer(instance, data=data, partial=True)
-            if ser.is_valid():
-                ser.save()
-                updated += 1
-            else:
-                raise ValueError(f"Validation failed while updating: {ser.errors}")
+            ser.is_valid(raise_exception=True)
+            ser.save()
+            updated += 1
 
     return {"status": "imported", "created": created, "updated": updated}
 
@@ -388,3 +410,46 @@ def _build_payloads(row, company: Company, dept: Optional[Department], taken_use
 def _norm_key(s: str) -> str:
     # normalize strings for matching: lowercase & strip all non-alphanumerics
     return re.sub(r'[^a-z0-9]+', '', str(s).lower())
+
+
+
+
+
+def _accepted_values_hint():
+    return {
+        "managerial_level": [lbl for _, lbl in ManagerialLevel.choices],
+        "status": [lbl for _, lbl in EmpStatus.choices],
+        "job_type": [lbl for _, lbl in JobType.choices],
+        "branch": [lbl for _, lbl in BranchType.choices],
+        "gender": [lbl for _, lbl in Gender.choices],
+        "role": [lbl for _, lbl in User._meta.get_field("role").choices],
+    }
+
+def _closest(label_list, raw):
+    if not raw:
+        return None
+    m = get_close_matches(str(raw), label_list, n=1, cutoff=0.6)
+    return m[0] if m else None
+
+def _pretty_errors(errors_dict, original_row_payload):
+    """
+    Optionally enrich DRF errors like 'is not a valid choice.' with suggestions
+    based on your choices labels.
+    """
+    out = {}
+    for field, msgs in errors_dict.items():
+        if isinstance(msgs, (list, tuple)):
+            text = [str(x) for x in msgs]
+        else:
+            text = [str(msgs)]
+
+        # add "did you mean" for common choice fields
+        if field in ("managerial_level", "status", "job_type", "branch", "gender", "role"):
+            labels = _accepted_values_hint()[field]
+            raw = original_row_payload.get(field)
+            hint = _closest(labels, raw)
+            if hint and any("valid choice" in m.lower() for m in text):
+                text.append(f"Did you mean “{hint}”?")
+
+        out[field] = text
+    return out
