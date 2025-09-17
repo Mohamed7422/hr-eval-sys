@@ -8,6 +8,7 @@ from evaluation_app.models import Employee
 from evaluation_app.utils import LabelChoiceField
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
 from evaluation_app.serializers.competency_serializer import CompetencySerializer
+from evaluation_app.services.objective_math import calculate_objectives_score
 
 User = get_user_model()
 
@@ -46,6 +47,8 @@ class EvaluationSerializer(serializers.ModelSerializer):
     
     created_at   = serializers.DateTimeField(read_only=True)
     updated_at   = serializers.DateTimeField(read_only=True)
+
+    objectives_score = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = Evaluation
         fields = [
@@ -55,6 +58,7 @@ class EvaluationSerializer(serializers.ModelSerializer):
             "reviewer", "reviewer_id",
             "period",
             "created_at", "updated_at",
+            "objectives_score",
             "objectives",
             "competencies"
         ]
@@ -66,3 +70,6 @@ class EvaluationSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         return super().update(instance, validated_data)
+    
+    def get_objectives_score(self, obj):
+        return calculate_objectives_score(obj, cap_at_100=True, return_breakdown=False)

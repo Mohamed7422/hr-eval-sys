@@ -2,8 +2,9 @@ from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
 from django.db.models import F
 from evaluation_app.models import (
-    Employee, EmployeePlacement, Department, SubDepartment, Section, SubSection
+    Employee, EmployeePlacement, Department, SubDepartment, Section, SubSection, Objective
 )
+from evaluation_app.services.objective_math import recalculate_objective_weights
 import json
 
 
@@ -54,6 +55,7 @@ def _update_counts_on_delete(sender, instance, **kwargs):
 # ---------------- warnings_count sync ------------------
 @receiver(pre_save, sender=Employee)
 def _sync_warnings_count(sender, instance, **kwargs):
+    
      w = instance.warning
      if isinstance(w, str):
          try:
@@ -63,3 +65,16 @@ def _sync_warnings_count(sender, instance, **kwargs):
      if not isinstance(w, (list, tuple)):
          w = [] if w is None else [w]
      instance.warning_count = len(w)       
+
+
+
+#-------------------------------------------
+# Resplit weights whenever objectives changed (create, update, delete)
+
+@receiver(post_save,sender=Objective)
+def _objective_saved(sender, instance:Objective, created, **kwargs):
+    recalculate_objective_weights(instance.evaluation)
+
+@receiver(post_delete,sender=Objective)
+def _objective_deleted(sender, instance:Objective, **kwargs):
+    recalculate_objective_weights(instance.evaluation)

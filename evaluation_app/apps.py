@@ -6,4 +6,4 @@ class EvaluationAppConfig(AppConfig):
     name = 'evaluation_app'
 
     def ready(self):
-        from . import signals
+        import evaluation_app.signals

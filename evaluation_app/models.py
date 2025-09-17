@@ -231,7 +231,7 @@ class Objective(models.Model):
     description   = models.TextField(blank=True)
     target        = models.TextField(blank=True)
     achieved      = models.TextField(blank=True)
-    weight        = models.PositiveSmallIntegerField()
+    weight        = models.PositiveSmallIntegerField(null=True, blank=True)
     status        = models.CharField(max_length=15, choices=ObjectiveState.choices)
     created_at    = models.DateTimeField(default=timezone.now)
     updated_at    = models.DateTimeField(auto_now=True)

@@ -59,6 +59,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     )
 
+    gender = serializers.CharField(source="user.gender", allow_blank=True, read_only=True)
+
     # ─────── WRITE‑ONLY HOOKS ──────────────────────────────────────
     
     # …or update user *fields* inline
@@ -103,6 +105,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "company_id",
             "department_id", 
             "job_type","location","branch",
+            "gender",
             
         ]
         read_only_fields = ("employee_id",)
