@@ -69,17 +69,17 @@ def calculate_objectives_score(
     subtotal = Decimal("0")
 
     for obj in evaluation.objective_set.all():
-        target = _d(float(obj.target) or 0)
+        target = _d(obj.target or 0)
         if target <= 0:
             continue
-        achieved = _d(float(obj.achieved) or 0)
+        achieved = _d(obj.achieved or 0)
         ratio = achieved / target
         if cap_at_100:# clamp to [0, 1]
             if ratio < 0:
                 ratio = Decimal("0")
             if ratio > 1:
                 ratio = Decimal("1")
-        weight_percent = _d(float(obj.weight) or 0)  # each objective’s % share (sums to 100)
+        weight_percent = _d(obj.weight or 0)  # each objective’s % share (sums to 100)
         subtotal += ratio * weight_percent
 
     subtotal = subtotal.quantize(CENT)  # e.g., 72.50 (% points)
