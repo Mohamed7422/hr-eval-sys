@@ -72,8 +72,13 @@ def _sync_warnings_count(sender, instance, **kwargs):
 # Resplit weights whenever objectives changed (create, update, delete)
 
 @receiver(post_save,sender=Objective)
-def _objective_saved(sender, instance:Objective, created, **kwargs):
+def _objective_saved(sender, instance:Objective, created,update_fields=None ,**kwargs):
+    if update_fields:
+        uf = set(update_fields)
+        if uf.issubset({"weight","updated_at"}):
+            return
     recalculate_objective_weights(instance.evaluation)
+
 
 @receiver(post_delete,sender=Objective)
 def _objective_deleted(sender, instance:Objective, **kwargs):

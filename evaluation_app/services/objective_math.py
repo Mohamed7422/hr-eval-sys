@@ -3,7 +3,7 @@ from evaluation_app.models import Evaluation, Objective, WeightsConfiguration
 from decimal import Decimal, ROUND_HALF_UP,ROUND_DOWN
 from django.db import transaction
 from django.utils import timezone
-
+import logging 
 
 def _d(x) -> Decimal:
     return Decimal(str(x))
@@ -20,33 +20,42 @@ def recalculate_objective_weights(evaluation:Evaluation) -> None:
     using a fixed total of 100.00%. Sum is guaranteed to be exactly 100.00.
     (We round down to 2dp and give leftover cents to the first few items.)
     """
-    
-
-
+  
     #Get Objectives count.
-    qs = (evaluation.objective_set.order_by('created_at',"objective_id").only("pk","weight"))
+    qs = (evaluation.objective_set
+          .order_by('created_at',"objective_id")
+          .only("pk","weight"))
+    
     objectives_count =qs.count()
     if objectives_count == 0:
-        return
+            return
     
-    #Calculate equal weight for each objective.
-    base_weight = (TOTAL_WEIGHT/objectives_count).quantize(CENT, rounding=ROUND_DOWN)  # e.g. 33.33 for 3 objectives
-    cents_total = int(TOTAL_WEIGHT*100)
-    cents_base = int(base_weight * 100 )
-    reminder = cents_total - cents_base * objectives_count  # e.g. 1 cent leftover for 3 objectives
+    # Even share in percent
+    even = _d(100) / _d(objectives_count)
 
-    #Assign weights to objectives.
-    objectives = list(qs)
-    now = timezone.now()
+    # First n-1 objectives get rounded even; last gets the remainder so sum = 100.00
+    weights = []
+    for _ in range(max(0, objectives_count - 1)):
+        weights.append(_d(even).quantize(CENT, rounding=ROUND_HALF_UP)) 
+    used = sum(weights, _d(0))
+    weights.append((_d(100) - used).quantize(CENT, rounding=ROUND_HALF_UP))
+
+    objs = list(qs)
+    changed = []
+    for obj, w in zip(objs, weights):
+        if _d(obj.weight or 0) != w:
+            obj.weight = float(w)
+            changed.append(obj)
+
+    if not changed:
+        return
+
+    # Do it atomically and without firing post_save
     with transaction.atomic():
-        for i, obj in enumerate(objectives):
-            cents = cents_base+(1 if i< reminder else 0) # e.g. 33.34, 33.35, 33.36
-            new_weight = Decimal(cents)/100 # e.g. 33.34
-            if Decimal(str(obj.weight or 0)).quantize(CENT) != new_weight:
-                obj.weight = new_weight 
-                if hasattr(obj, 'updated_at'):
-                    obj.updated_at = now
-                obj.save(update_fields=['weight','updated_at'] if hasattr(obj, 'updated_at') else ['weight']) 
+        Objective.objects.bulk_update(changed, ["weight"])
+        # If you want updated_at to move (bulk_update skips auto_now):
+        if hasattr(Objective, "updated_at"):
+            Objective.objects.filter(pk__in=[o.pk for o in changed]).update(updated_at=timezone.now())
             
      # ---------------------------------------------------------------#
 
@@ -69,18 +78,25 @@ def calculate_objectives_score(
     subtotal = Decimal("0")
 
     for obj in evaluation.objective_set.all():
-        target = _d(obj.target or 0)
-        if target <= 0:
-            continue
-        achieved = _d(obj.achieved or 0)
-        ratio = achieved / target
-        if cap_at_100:# clamp to [0, 1]
-            if ratio < 0:
-                ratio = Decimal("0")
-            if ratio > 1:
-                ratio = Decimal("1")
-        weight_percent = _d(obj.weight or 0)  # each objective’s % share (sums to 100)
-        subtotal += ratio * weight_percent
+        
+        try:
+          logging.info(f"Calculating score for objective {obj.objective_id}")
+        
+          target = _d(float(obj.target)) if obj.target else Decimal("0")
+          if target <= 0:
+              continue
+          achieved = _d(float(obj.achieved)) if obj.achieved else Decimal("0")
+          ratio = achieved / target
+          if cap_at_100:# clamp to [0, 1]
+              if ratio < 0:
+                  ratio = Decimal("0")
+              if ratio > 1:
+                  ratio = Decimal("1")
+          weight_percent = _d(obj.weight) if obj.weight is not None else Decimal("0")  # each objective’s % share (sums to 100)
+          subtotal += ratio * weight_percent
+        except Exception as e:  
+          logging.error(f"Error calculating score for objective {obj.objective_id}: {e}")
+          continue  
 
     subtotal = subtotal.quantize(CENT)  # e.g., 72.50 (% points)
 

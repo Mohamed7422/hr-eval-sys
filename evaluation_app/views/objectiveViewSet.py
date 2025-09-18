@@ -54,3 +54,30 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
             return qs.filter(evaluation__employee__departments__manager=user).distinct()
         # regular employee only sees their own objectives
         return qs.filter(evaluation__employee__user=user)
+
+
+    def create(self, request, *args, **kwargs):
+        ser = self.get_serializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        obj =ser.save() #triggers objective post_save signal to recalculate weights
+        #pull in bulk update changes done by the signal
+        obj.refresh_from_db(fields=["weight","updated_at"])
+        data = self.get_serializer(obj).data
+        headers = self.get_success_headers(data)
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+    
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        ser = self.get_serializer(instance, data=request.data, partial=partial)
+        ser.is_valid(raise_exception=True)
+        obj =ser.save() #triggers objective post_save signal to recalculate weights
+        #pull in bulk update changes done by the signal
+        obj.refresh_from_db(fields=["weight","updated_at"])
+        data = self.get_serializer(obj).data
+        return Response(data)
+    
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return super().partial_update(request, *args, **kwargs)
