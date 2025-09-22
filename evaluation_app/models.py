@@ -253,7 +253,7 @@ class Competency(models.Model):
     category       = models.CharField(max_length=12, choices=CompetencyCategory.choices)
     required_level = models.PositiveSmallIntegerField()
     actual_level   = models.PositiveSmallIntegerField()
-    weight         = models.PositiveSmallIntegerField()
+    weight         = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     description    = models.TextField(blank=True)
     created_at     = models.DateTimeField(default=timezone.now)
     updated_at     = models.DateTimeField(auto_now=True)

@@ -3,6 +3,7 @@
 from rest_framework import serializers
 from evaluation_app.models import Competency, Evaluation, CompetencyCategory
 from evaluation_app.utils import LabelChoiceField
+from evaluation_app.services.competency_math import competency_score
 
 class CompetencySerializer(serializers.ModelSerializer):
     competence_id   = serializers.UUIDField(read_only=True)
@@ -23,7 +24,8 @@ class CompetencySerializer(serializers.ModelSerializer):
     category       = LabelChoiceField(choices=CompetencyCategory.choices)
     required_level = serializers.FloatField()
     actual_level   = serializers.FloatField()
-    weight         = serializers.FloatField()
+    weight         = serializers.FloatField(read_only=True, required=False)
+    score = serializers.SerializerMethodField(read_only=True)
     description    = serializers.CharField(allow_blank=True, required=False)
 
     created_at     = serializers.DateTimeField(read_only=True)
@@ -40,8 +42,13 @@ class CompetencySerializer(serializers.ModelSerializer):
             "required_level",
             "actual_level",
             "weight",
+            "score",
             "description",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ("competence_id", "created_at", "updated_at")
+
+
+    def get_score(self, obj:Competency) -> float:
+        return competency_score(obj, cap_at_100=True)    

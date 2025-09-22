@@ -2,9 +2,10 @@ from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
 from django.db.models import F
 from evaluation_app.models import (
-    Employee, EmployeePlacement, Department, SubDepartment, Section, SubSection, Objective
+    Employee, EmployeePlacement, Department, SubDepartment, Section, SubSection, Objective, Competency
 )
 from evaluation_app.services.objective_math import recalculate_objective_weights
+from evaluation_app.services.competency_math import recalculate_competency_weights
 import json
 
 
@@ -83,3 +84,14 @@ def _objective_saved(sender, instance:Objective, created,update_fields=None ,**k
 @receiver(post_delete,sender=Objective)
 def _objective_deleted(sender, instance:Objective, **kwargs):
     recalculate_objective_weights(instance.evaluation)
+
+
+#-------------------------------------------
+# Resplit weights whenever competencies changed (create, update, delete)
+@receiver(post_save, sender=Competency)
+def _competency_saved(sender, instance: Competency, **kwargs):
+    recalculate_competency_weights(instance.evaluation)
+
+@receiver(post_delete, sender=Competency)
+def _competency_deleted(sender, instance: Competency, **kwargs):
+    recalculate_competency_weights(instance.evaluation)

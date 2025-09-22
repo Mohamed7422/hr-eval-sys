@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from evaluation_app.models import Competency
 from evaluation_app.serializers.competency_serializer import CompetencySerializer
 from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
-
+from evaluation_app.services.competency_math import recalculate_competency_weights
 class CompetencyViewSet(viewsets.ModelViewSet):
     """
     • ADMIN/HR → full CRUD on all competencies
@@ -56,3 +56,18 @@ class CompetencyViewSet(viewsets.ModelViewSet):
 
         # regular employee only sees own
         return qs.filter(evaluation__employee__user=user)
+    
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        recalculate_competency_weights(obj.evaluation)
+        obj.refresh_from_db(fields=["weight","updated_at"])    
+
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        recalculate_competency_weights(obj.evaluation)
+        obj.refresh_from_db(fields=["weight","updated_at"])
+
+    def perform_destroy(self, instance):
+        evaluation = instance.evaluation
+        super().perform_destroy(instance)
+        recalculate_competency_weights(evaluation)        
