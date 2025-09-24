@@ -1,4 +1,5 @@
 from rest_framework import viewsets, filters, status, permissions
+from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Prefetch
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,6 +8,7 @@ from evaluation_app.models import Employee,EmployeePlacement
 from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR, IsAdminOrHR
 from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
+from evaluation_app.eval_filters.employee_filters import EmployeeFilter
 
 
 
@@ -22,8 +24,12 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related('user','company').prefetch_related('departments')
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]  # default fallback
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['user__name', 'user__email']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_class = EmployeeFilter
+    search_fields = ['user__name', 'user__email', 'employee_code', 'company__name', 'user__role'] 
+    
+    
+       
     
      
     
