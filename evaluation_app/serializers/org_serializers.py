@@ -92,6 +92,7 @@ class EmployeePlacementSerializer(serializers.ModelSerializer):
     employee_id       = serializers.PrimaryKeyRelatedField(
         source="employee", queryset=Employee.objects.all(),required=False
     )
+    
     department_id     = serializers.PrimaryKeyRelatedField(
         source="department", queryset=Department.objects.all(),
         required=False, allow_null=True
@@ -111,6 +112,7 @@ class EmployeePlacementSerializer(serializers.ModelSerializer):
 
     # Read-only niceties
     employee_name       = serializers.CharField(source="employee.user.name", read_only=True)
+    company_id = serializers.PrimaryKeyRelatedField(source="company", read_only=True)
     company_name        = serializers.CharField(source="company.name", read_only=True)
     department_name     = serializers.CharField(source="department.name", read_only=True)
     sub_department_name = serializers.CharField(source="sub_department.name", read_only=True)
@@ -123,6 +125,7 @@ class EmployeePlacementSerializer(serializers.ModelSerializer):
             "placement_id",
             "employee_id", "employee_name",
             # company_id REMOVED from API surface
+            "company_id",
             "company_name",
             "department_id", "department_name",
             "sub_department_id", "sub_department_name",
@@ -244,7 +247,6 @@ class EmployeePlacementSerializer(serializers.ModelSerializer):
         instance.company = instance.employee.company
         instance.save()
         return instance
-    
-# ------------- Importing At Once Section ------------------
+ 
 
  
