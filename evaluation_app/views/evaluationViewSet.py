@@ -15,6 +15,8 @@ from evaluation_app.permissions import(
     IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
 )
 
+from evaluation_app.services.evaluation_math import calculate_evaluation_score
+
 class EvaluationFilter(django_filters.FilterSet):
     employee_id = django_filters.UUIDFilter(field_name="employee__employee_id")
 
@@ -81,6 +83,7 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         return qs.filter(employee__user=user)
     # ----------------------------------------------------------
 
+     
     # ---- extra validation for LM / HOD -----------------------
     def perform_create(self, serializer):
         print(">> perform_create by", self.request.user, self.request.user.role)
@@ -94,15 +97,22 @@ class EvaluationViewSet(viewsets.ModelViewSet):
                departments__manager=user,employee_id=employee_id
            ).exists()
            if not managed:
-               return Response(
-                   {"detail": "You can only create evaluations for employees you manage."},
-                   status=status.HTTP_403_FORBIDDEN
+               self.permission_denied(
+                   self.request,
+                   message="You can only create evaluations for employees you manage."
                )
-        # Admin & HR may create evaluations for any employee
-        serializer.save()
 
-   
+        # Admin & HR may create evaluations for any employee
+        instance = serializer.save()
+        calculate_evaluation_score(instance, persist=True)       
+      
     # ----------------------------------------------------------       
+
+    def perfom_update(self, serializer):
+        instance = self.save()
+        calculate_evaluation_score(instance, persist=True)
+
+        
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)

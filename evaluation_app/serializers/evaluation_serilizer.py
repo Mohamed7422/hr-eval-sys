@@ -10,6 +10,7 @@ from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
 from evaluation_app.serializers.competency_serializer import CompetencySerializer
 from evaluation_app.services.objective_math import calculate_objectives_score
 from evaluation_app.services.competency_math import calculate_competencies_score
+from evaluation_app.services.evaluation_math import calculate_evaluation_score
 
 User = get_user_model()
 
@@ -79,3 +80,10 @@ class EvaluationSerializer(serializers.ModelSerializer):
     
     def get_competencies_score(self, obj):
         return calculate_competencies_score(obj, cap_at_100=True)    
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["objectives_score"] = calculate_objectives_score(instance, cap_at_100=True)
+        data["competencies_score"] = calculate_competencies_score(instance, cap_at_100=True)
+        data["score"] = calculate_evaluation_score(instance, cap_at_100=True)
+        return data

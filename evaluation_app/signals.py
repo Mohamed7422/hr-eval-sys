@@ -6,6 +6,7 @@ from evaluation_app.models import (
 )
 from evaluation_app.services.objective_math import recalculate_objective_weights
 from evaluation_app.services.competency_math import recalculate_competency_weights
+from evaluation_app.services.evaluation_math import calculate_evaluation_score
 import json
 
 
@@ -95,3 +96,13 @@ def _competency_saved(sender, instance: Competency, **kwargs):
 @receiver(post_delete, sender=Competency)
 def _competency_deleted(sender, instance: Competency, **kwargs):
     recalculate_competency_weights(instance.evaluation)
+
+
+#-------------------------------------------
+@receiver([post_save, post_delete], sender=Objective)
+def _objective_changed(sender, instance, **kwargs):
+    calculate_evaluation_score(instance.evaluation, persist=True)
+
+@receiver([post_save, post_delete], sender=Competency)
+def _competency_changed(sender, instance, **kwargs):
+    calculate_evaluation_score(instance.evaluation, persist=True)
