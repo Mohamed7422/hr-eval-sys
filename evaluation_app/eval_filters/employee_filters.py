@@ -1,6 +1,7 @@
 # evaluation_app/eval_filters/employee_filters.py
 import django_filters
-from evaluation_app.models import Employee
+from evaluation_app.models import Employee, EmployeePlacement 
+from django.db.models import OuterRef, Subquery 
 
 from accounts.models import Role
 
@@ -50,8 +51,14 @@ class EmployeeFilter(django_filters.FilterSet):
 
     def filter_department_id(self, qs, name, value): 
 
-     return qs.filter(
-        employee_placements__department_id=value
-    ).distinct()
+
+     latest_dept_sq = Subquery(
+        EmployeePlacement.objects
+        .filter(employee=OuterRef('pk'))
+        .order_by('-assigned_at')
+        .values('department_id')[:1]
+    )
+     return qs.annotate(_latest_dept=latest_dept_sq).filter(_latest_dept=value)
  
+    
       
