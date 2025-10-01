@@ -53,6 +53,7 @@ class SubDepartmentSerializer(serializers.ModelSerializer):
     department    = serializers.CharField(source="department.name", read_only=True)
     manager_id    = serializers.PrimaryKeyRelatedField(source="manager", queryset=User.objects.all(), allow_null=True, required=False)
     manager       = serializers.CharField(source="manager.name", read_only=True)
+    
 
     class Meta:
         model  = SubDepartment

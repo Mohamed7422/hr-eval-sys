@@ -1,6 +1,7 @@
 # evaluation_app/eval_filters/employee_filters.py
 import django_filters
 from evaluation_app.models import Employee
+
 from accounts.models import Role
 
 class RoleInFilter(django_filters.BaseInFilter, django_filters.CharFilter):
@@ -13,10 +14,11 @@ class EmployeeFilter(django_filters.FilterSet):
 
     company_id   = django_filters.UUIDFilter(field_name="company__company_id")
     company_name = django_filters.CharFilter(field_name="company__name", lookup_expr="iexact")
-
+    
+    department_id = django_filters.UUIDFilter(method="filter_department_id")
     class Meta:
         model  = Employee
-        fields = ["role", "company_id", "company_name"]
+        fields = ["role", "company_id", "company_name", "department_id"]
 
     @staticmethod
     def _role_code(raw: str) -> str | None:
@@ -45,3 +47,11 @@ class EmployeeFilter(django_filters.FilterSet):
         if not codes:
             return qs.none()
         return qs.filter(user__role__in=codes)
+
+    def filter_department_id(self, qs, name, value): 
+
+     return qs.filter(
+        employee_placements__department_id=value
+    ).distinct()
+ 
+      

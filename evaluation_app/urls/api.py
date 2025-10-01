@@ -1,6 +1,6 @@
 # evaluation_app/urls/api.py
 from rest_framework.routers import DefaultRouter
-from evaluation_app.views.employee import EmployeeViewSet
+from evaluation_app.views.employeeViewSet import EmployeeViewSet
 from evaluation_app.views.evaluationViewSet import EvaluationViewSet
 from evaluation_app.views.auth import EmailLoginView 
 from evaluation_app.views.objectiveViewSet import ObjectiveViewSet
