@@ -49,7 +49,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
         read_only_fields = ("department_id", "created_at", "updated_at")
  
 class SubDepartmentSerializer(serializers.ModelSerializer):
-    department_id = serializers.PrimaryKeyRelatedField(source="department", queryset=Department.objects.all(), write_only=True)
+    department_id = serializers.PrimaryKeyRelatedField(source="department", queryset=Department.objects.all())
     department    = serializers.CharField(source="department.name", read_only=True)
     manager_id    = serializers.PrimaryKeyRelatedField(source="manager", queryset=User.objects.all(), allow_null=True, required=False)
     manager       = serializers.CharField(source="manager.name", read_only=True)
