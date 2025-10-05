@@ -67,10 +67,10 @@ class SectionSerializer(serializers.ModelSerializer):
     sub_department    = serializers.CharField(source="sub_department.name", read_only=True)
     manager_id        = serializers.PrimaryKeyRelatedField(source="manager", queryset=User.objects.all(), allow_null=True, required=False)
     manager           = serializers.CharField(source="manager.name", read_only=True)
-
+    department_id     = serializers.PrimaryKeyRelatedField(source="sub_department.department",  read_only=True)
     class Meta:
         model  = Section
-        fields = ["section_id", "name", "employee_count", "sub_department", "sub_department_id",
+        fields = ["section_id", "name", "employee_count", "department_id", "sub_department", "sub_department_id",
                   "manager", "manager_id", "created_at", "updated_at"]
         read_only_fields = ("section_id","created_at","updated_at")
 
@@ -80,10 +80,10 @@ class SubSectionSerializer(serializers.ModelSerializer):
     section    = serializers.CharField(source="section.name", read_only=True)
     manager_id = serializers.PrimaryKeyRelatedField(source="manager", queryset=User.objects.all(), allow_null=True, required=False)
     manager    = serializers.CharField(source="manager.name", read_only=True)
-
+    department_id = serializers.PrimaryKeyRelatedField(source="section.sub_department.department", read_only=True)
     class Meta:
         model  = SubSection
-        fields = ["sub_section_id", "name", "employee_count", "section", "section_id",
+        fields = ["sub_section_id", "name", "employee_count", "department_id", "section", "section_id",
                   "manager", "manager_id", "created_at", "updated_at"]
         read_only_fields = ("sub_section_id","created_at","updated_at")
 
