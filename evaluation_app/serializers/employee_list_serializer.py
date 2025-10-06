@@ -1,7 +1,8 @@
 
 from rest_framework import serializers
-from accounts.models import User
-from evaluation_app.models import Employee, EmployeePlacement, Department
+from evaluation_app.models import Employee, EmployeePlacement 
+from evaluation_app.models import EmpStatus
+from evaluation_app.utils import LabelChoiceField
 
 
  
@@ -18,7 +19,7 @@ class EmployeeListSerializer(serializers.ModelSerializer):
     managerial_level = serializers.CharField(source="user.managerial_level", read_only=True)
     status       = serializers.CharField(source="user.status", read_only=True)
     warnings_count = serializers.IntegerField(source="warning_count", read_only=True)
-
+    status            = LabelChoiceField(choices=EmpStatus.choices)
     company_name = serializers.CharField(source="company.name", read_only=True, default=None)
     join_date         = serializers.DateField(format="%Y-%m-%d")
     department = serializers.SerializerMethodField(read_only=True)
