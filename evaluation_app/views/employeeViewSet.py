@@ -9,6 +9,7 @@ from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR, IsAdminOrHR
 from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
 from evaluation_app.eval_filters.employee_filters import EmployeeFilter
+from evaluation_app.serializers.employee_list_serializer import EmployeeListSerializer
 
 
 
@@ -27,8 +28,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = EmployeeFilter
     search_fields = ['user__name', 'user__email', 'employee_code', 'company__name', 'user__role'] 
-    
-    
+     
        
     
      
@@ -100,7 +100,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         return qs.filter(user=user)
     
     def get_serializer_class(self):
-        return EmployeeSerializer
+        return EmployeeListSerializer if self.action == 'list' else EmployeeSerializer
+
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
