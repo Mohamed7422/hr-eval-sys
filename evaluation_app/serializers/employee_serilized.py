@@ -117,56 +117,66 @@ class EmployeeSerializer(serializers.ModelSerializer):
      
     # ---------- Placement helpers ----------
     def _latest_placement(self, obj):
-        # use prefetch cache if present
+        """Optimized to use prefetched data and reduce queries"""
         if hasattr(obj, "placements_cache") and obj.placements_cache:
             return obj.placements_cache[0]
-        return (
-            EmployeePlacement.objects
+            
+        # If no cache, do one efficient query with all needed relations
+        return (EmployeePlacement.objects
             .select_related(
-                "company",
                 "department",
-                "sub_department__department",
-                "section__sub_department__department",
-                "sub_section__section__sub_department__department",
+                "department__manager",
+                "sub_department",
+                "sub_department__manager",
+                "section",
+                "section__manager", 
+                "sub_section",
+                "sub_section__manager"
             )
             .filter(employee=obj)
             .order_by("-assigned_at")
-            .first()
-        )
+            .first())
+    
 
     def _resolve_lineage(self, p: EmployeePlacement):
-        dept = sdep = sec = ssec = None
-        level = None
+        """Optimized hierarchy resolution using prefetched data"""
+        if not p:
+            return None, None, None, None, None, None
 
+        # Start with deepest level and work up
         if p.sub_section_id:
+            ssec = p.sub_section
+            sec = ssec.section  # Already loaded via select_related
+            sdep = sec.sub_department
+            dept = sdep.department
             level = "sub_section"
-            ssec  = p.sub_section
-            sec   = ssec.section if ssec else None
-            sdep  = sec.sub_department if sec else None
-            dept  = sdep.department if sdep else None
-
+            manager = ssec.manager
+        
         elif p.section_id:
+            ssec = None
+            sec = p.section
+            sdep = sec.sub_department
+            dept = sdep.department
             level = "section"
-            sec   = p.section
-            sdep  = sec.sub_department if sec else None
-            dept  = sdep.department if sdep else None
-
+            manager = sec.manager
+            
         elif p.sub_department_id:
+            ssec = sec = None
+            sdep = p.sub_department
+            dept = sdep.department
             level = "sub_department"
-            sdep  = p.sub_department
-            dept  = sdep.department if sdep else None
-
+            manager = sdep.manager
+            
         elif p.department_id:
+            ssec = sec = sdep = None
+            dept = p.department
             level = "department"
-            dept  = p.department
+            manager = dept.manager
+            
+        else:
+            return None, None, None, None, None, None
 
-    # choose the direct manager for the deepest available unit
-        lm = (ssec.manager if ssec else
-          sec.manager  if sec  else
-          sdep.manager if sdep else
-          dept.manager if dept else None)
-
-        return level, dept, sdep, sec, ssec, lm
+        return level, dept, sdep, sec, ssec, manager
 
     def get_placement(self, obj):
         p = self._latest_placement(obj)
@@ -198,22 +208,42 @@ class EmployeeSerializer(serializers.ModelSerializer):
     
 
     def get_org_path(self, obj):
+        """Optimized org path calculation"""
         p = self._latest_placement(obj)
         if not p:
             return ""
-        _, dept, sdep, sec, ssec, _ = self._resolve_lineage(p)
-          
-        return " › ".join(u.name for u in (dept, sdep, sec, ssec) if u)
+            
+        # Build path components only for existing levels
+        path_parts = []
+        if p.department:
+            path_parts.append(p.department.name)
+        if p.sub_department:
+            path_parts.append(p.sub_department.name)
+        if p.section:
+            path_parts.append(p.section.name)
+        if p.sub_section:
+            path_parts.append(p.sub_section.name)
+            
+        return " › ".join(path_parts)
 
     def get_direct_manager(self, obj):
+        """Optimized manager lookup"""
         p = self._latest_placement(obj)
         if not p:
             return None
-        _, dept, sdep, sec, ssec, lm = self._resolve_lineage(p)
-        if not lm:
-            return None
-        '''"id": str(lm.user_id),'''
-        return lm.name
+            
+        # Get manager from deepest level first
+        manager = None
+        if p.sub_section and p.sub_section.manager:
+            manager = p.sub_section.manager
+        elif p.section and p.section.manager:
+            manager = p.section.manager
+        elif p.sub_department and p.sub_department.manager:
+            manager = p.sub_department.manager
+        elif p.department and p.department.manager:
+            manager = p.department.manager
+            
+        return manager.name if manager else None
     
     def create(self, validated_data):
         user_payload = validated_data.pop("user", None)

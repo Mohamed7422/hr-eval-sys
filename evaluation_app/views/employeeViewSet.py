@@ -9,7 +9,6 @@ from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR, IsAdminOrHR
 from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
 from evaluation_app.eval_filters.employee_filters import EmployeeFilter
-from evaluation_app.serializers.employee_list_serializer import EmployeeListSerializer
 
 
 
@@ -76,34 +75,58 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
+    # Optimize placement queries with all needed relations
         latest_placements = (
-            EmployeePlacement.objects.select_related("company","department","sub_department__department",
-                                                     "section__sub_department__department",
-                                                     "sub_section__section__sub_department__department")
+            EmployeePlacement.objects
+            .select_related(
+                "company",
+                "department",
+                "department__manager",
+                "sub_department",
+                "sub_department__manager",
+                "sub_department__department",
+                "section",
+                "section__manager",
+                "section__sub_department__department",
+                "sub_section",
+                "sub_section__manager",
+                "sub_section__section__sub_department__department"
+            )
             .order_by('-assigned_at')
         )
+
+        # Base queryset with essential relations
+        qs = (Employee.objects
+            .select_related('user', 'company')
+            .prefetch_related(
+                Prefetch(
+                    "employee_placements",
+                    queryset=latest_placements,
+                    to_attr="placements_cache"
+                )
+            ))
+
         user = self.request.user
-        qs   = (Employee.objects.select_related('user','company')
-                .prefetch_related(Prefetch(
-            "employee_placements",
-            queryset=latest_placements,
-            to_attr="placements_cache"
-        ))
-        )
 
-        if user.role in ('ADMIN','HR'):
+        # Role-based filtering
+        if user.role in ('ADMIN', 'HR'):
             return qs
-        if user.role in ('HOD','LM'):
-            # only those in departments they manage
-            return qs.filter(departments__manager=user).distinct()
-        # regular employee only sees self
-        return qs.filter(user=user)
-    
-    def get_serializer_class(self):
-        return EmployeeSerializer
+        elif user.role in ('HOD', 'LM'):
+            # Filter by departments they manage at any level
+            managed_employees = qs.filter(
+                employee_placements__in=EmployeePlacement.objects.filter(
+                    models.Q(department__manager=user) |
+                    models.Q(sub_department__manager=user) |
+                    models.Q(section__manager=user) |
+                    models.Q(sub_section__manager=user)
+                )
+            ).distinct()
+            return managed_employees
+        else:
+            # Regular employee sees only themselves
+            return qs.filter(user=user)
 
-#        return EmployeeListSerializer if self.action == 'list' else EmployeeSerializer
-
+ 
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
