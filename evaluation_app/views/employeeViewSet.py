@@ -1,6 +1,6 @@
 from rest_framework import viewsets, filters, status, permissions
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -115,10 +115,10 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             # Filter by departments they manage at any level
             managed_employees = qs.filter(
                 employee_placements__in=EmployeePlacement.objects.filter(
-                    models.Q(department__manager=user) |
-                    models.Q(sub_department__manager=user) |
-                    models.Q(section__manager=user) |
-                    models.Q(sub_section__manager=user)
+                    Q(department__manager=user) |
+                    Q(sub_department__manager=user) |
+                    Q(section__manager=user) |
+                    Q(sub_section__manager=user)
                 )
             ).distinct()
             return managed_employees
