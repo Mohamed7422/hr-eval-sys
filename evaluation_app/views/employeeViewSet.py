@@ -100,7 +100,9 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         return qs.filter(user=user)
     
     def get_serializer_class(self):
-        return EmployeeListSerializer if self.action == 'list' else EmployeeSerializer
+        return EmployeeSerializer
+
+#        return EmployeeListSerializer if self.action == 'list' else EmployeeSerializer
 
 
     def destroy(self, request, *args, **kwargs):
