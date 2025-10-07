@@ -4,6 +4,7 @@ from evaluation_app.models import Employee, EmployeePlacement
 from evaluation_app.models import EmpStatus
 from evaluation_app.utils import LabelChoiceField
 
+from accounts.models import User
 
  
 class EmployeeListSerializer(serializers.ModelSerializer):
@@ -23,11 +24,19 @@ class EmployeeListSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source="company.name", read_only=True, default=None)
     join_date         = serializers.DateField(format="%Y-%m-%d")
     department = serializers.SerializerMethodField(read_only=True)
+    user_id    = serializers.PrimaryKeyRelatedField(
+        source="user",
+        queryset=User.objects.all(),
+        required=False
+
+    )
     
     class Meta:
         model = Employee
         fields = [     
-              "name",
+            "employee_id",
+            "user_id",
+            "name",
             "position",
             "status",
             "role",
