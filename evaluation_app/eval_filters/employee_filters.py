@@ -17,9 +17,11 @@ class EmployeeFilter(django_filters.FilterSet):
     company_name = django_filters.CharFilter(field_name="company__name", lookup_expr="iexact")
     
     department_id = django_filters.UUIDFilter(method="filter_department_id")
+    employee_id = django_filters.UUIDFilter(field_name="employee_id")
+    user_id = django_filters.UUIDFilter(field_name="user__user_id")
     class Meta:
         model  = Employee
-        fields = ["role", "company_id", "company_name", "department_id"]
+        fields = ["role", "company_id", "company_name", "department_id", "employee_id", "user_id"]
 
     @staticmethod
     def _role_code(raw: str) -> str | None:

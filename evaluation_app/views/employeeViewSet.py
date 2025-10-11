@@ -41,7 +41,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                 return [(IsAdmin|IsHR)()]
             if role in ('HOD','LM'):
                 return [(IsHOD|IsLineManager)()]
-            self.permission_denied(self.request, message="Cannot list all employees.")
+            #self.permission_denied(self.request, message="Cannot list all employees.")
+            return [IsAuthenticated()]
 
         # ─── RETRIEVE ───────────────────────────────────
         if self.action == 'retrieve':
