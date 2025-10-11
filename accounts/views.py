@@ -2,7 +2,8 @@ from django.shortcuts import render
 from rest_framework import generics, permissions
 from accounts.serializers.user_serializer import UserCreateSerializer
 from django.contrib.auth import get_user_model
-from evaluation_app.permissions import IsAdmin, IsHR
+from evaluation_app.permissions import IsAdmin, IsHR 
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, filters
 
 User = get_user_model()
@@ -20,7 +21,12 @@ class UserCreateAPIView(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [(IsHR | IsAdmin)()]
-        if self.action in ("list", "retrieve"):
-            return [(IsHR | IsAdmin)()]
-        return [permissions.IsAuthenticated()]
+        
+        return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ("ADMIN", "HR"):
+            return User.objects.all()
+        return User.objects.filter(user_id=user.user_id)
         
