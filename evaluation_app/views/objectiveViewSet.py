@@ -27,7 +27,7 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
                 return [(IsAdmin|IsHR)()]
             if role in ("HOD", "LM"):
                 return [(IsHOD|IsLineManager)()]
-            return [IsSelfOrAdminHR()]
+            return [IsAuthenticated()]
 
         # ─── CREATE / UPDATE / PARTIAL_UPDATE ──────────────
         if action in ("create", "update", "partial_update"):

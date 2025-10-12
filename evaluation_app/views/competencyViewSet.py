@@ -31,7 +31,7 @@ class CompetencyViewSet(viewsets.ModelViewSet):
                 return [(IsAdmin|IsHR)()]
             if role in ("HOD", "LM"):
                 return [(IsHOD|IsLineManager)()]
-            return [IsSelfOrAdminHR()]
+            return [IsAuthenticated()]
 
         # CREATE / UPDATE / DELETE
         if role in ("ADMIN", "HR"):
