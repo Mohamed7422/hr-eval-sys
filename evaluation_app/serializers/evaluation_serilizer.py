@@ -1,9 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from evaluation_app.models import (
-    Evaluation, Objective, Competency, EmpStatus, EvalStatus, EvalType
+    Evaluation, EvalStatus, EvalType
 )
-from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.models import Employee
 from evaluation_app.utils import LabelChoiceField
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer

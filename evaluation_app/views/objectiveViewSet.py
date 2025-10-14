@@ -4,9 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from evaluation_app.filters import ObjectiveFilter
-from evaluation_app.models import Objective, Employee
+from evaluation_app.models import Objective, EmployeePlacement
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
-from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
+from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager 
  
 class ObjectiveViewSet(viewsets.ModelViewSet):
     queryset         = Objective.objects.select_related("evaluation__employee")
@@ -51,7 +51,12 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
             return qs
         if user.role in ("HOD", "LM"):
             # only objectives whose evaluation’s employee they manage
-            return qs.filter(evaluation__employee__departments__manager=user).distinct()
+            return qs.filter(
+                evaluation__employee__employee_placements__in=EmployeePlacement.objects.filter(
+                    Q(department__manager=user) | 
+                    Q(sub_department__manager=user) | 
+                    Q(section__manager=user) |
+                    Q(sub_section__manager=user))).distinct() 
         # regular employee only sees their own objectives
         return qs.filter(evaluation__employee__user=user)
 

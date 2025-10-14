@@ -4,10 +4,11 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from evaluation_app.filters import CompetencyFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from evaluation_app.models import Competency
+from evaluation_app.models import Competency, EmployeePlacement
 from evaluation_app.serializers.competency_serializer import CompetencySerializer
 from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
 from evaluation_app.services.competency_math import recalculate_competency_weights
+from django.db.models import Q
 class CompetencyViewSet(viewsets.ModelViewSet):
     """
     • ADMIN/HR → full CRUD on all competencies
@@ -52,7 +53,11 @@ class CompetencyViewSet(viewsets.ModelViewSet):
 
         if user.role in ("HOD", "LM"):
             # only competencies for employees they manage
-            return qs.filter(evaluation__employee__departments__manager=user).distinct()
+            return qs.filter(evaluation__employee__employee_placements__in=EmployeePlacement.objects.filter(
+                Q(department__manager=user) |
+                Q(sub_department__manager=user) |
+                Q(section__manager=user) | 
+                Q(sub_section__manager=user))).distinct()
 
         # regular employee only sees own
         return qs.filter(evaluation__employee__user=user)

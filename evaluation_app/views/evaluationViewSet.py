@@ -1,18 +1,18 @@
-from rest_framework import viewsets, status,mixins, filters
+from rest_framework import viewsets, status, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Prefetch
+from django.db.models import  Q
 from rest_framework.response import Response
 from evaluation_app.serializers.evaluation_serilizer import (
-    EvaluationSerializer, ObjectiveSerializer
+    EvaluationSerializer
 )
 import django_filters
 from rest_framework.permissions import IsAuthenticated
 
 from evaluation_app.models import (
-    Evaluation, Employee, Objective, EvalStatus, EvalType
+    Evaluation, Employee, EmployeePlacement  
 )
 from evaluation_app.permissions import(
-    IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
+    IsAdmin, IsHR, IsHOD, IsLineManager 
 )
 
 from evaluation_app.services.evaluation_math import calculate_evaluation_score
@@ -79,7 +79,14 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         if user.role in ("ADMIN", "HR"):
             return qs
         if user.role in ("HOD", "LM"):
-            return qs.filter(employee__departments__manager=user).distinct()
+            return qs.filter(
+                employee__employee_placements__in=EmployeePlacement.objects.filter(
+                    Q(department__manager=user) |
+                    Q(sub_department__manager=user) |
+                    Q(section__manager=user) |
+                    Q(sub_section__manager=user)
+                )
+            ).distinct()
         return qs.filter(employee__user=user)
     # ----------------------------------------------------------
 
@@ -94,7 +101,13 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         # LM & HOD may only create evaluations for employees they manage
         if user.role in ("HOD", "LM"):
            managed = Employee.objects.filter(
-               departments__manager=user,employee_id=employee_id
+               employee_id=employee_id,
+               employee_placements__in=EmployeePlacement.objects.filter(
+                   Q(department__manager=user) |
+                   Q(sub_department__manager=user) |
+                   Q(section__manager=user) |
+                   Q(sub_section__manager=user)
+               )
            ).exists()
            if not managed:
                self.permission_denied(

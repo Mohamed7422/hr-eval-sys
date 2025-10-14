@@ -99,7 +99,7 @@ MIDDLEWARE = [
 ]
 
 # -- Allow only your production front-end(s) --------------------
-CORS_ALLOW_ALL_ORIGINS = True
+#CORS_ALLOW_ALL_ORIGINS = True
 #CORS_ALLOWED_ORIGINS = []
      
   # allow all origins (not recommended for production)

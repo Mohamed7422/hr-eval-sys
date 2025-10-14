@@ -13,6 +13,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
     #user = UserCreateSerializer(read_only=True)
      # ─────── FLATTENED USER FIELDS ─────────────────────
     name              = serializers.CharField(source="user.name", read_only=True)
+    username          = serializers.CharField(source="user.username", read_only=True)
     email             = serializers.CharField(source="user.email", read_only=True)
     phone             = serializers.CharField(source="user.phone", allow_blank=True, read_only=True)
     country_code      = serializers.CharField(source="user.country_code", allow_blank=True, read_only=True)
@@ -59,7 +60,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     )
 
-    gender = serializers.CharField(source="user.gender", allow_blank=True, read_only=True)
+    gender = LabelChoiceField(source="user.gender", choices=User._meta.get_field("gender").choices, required=False, read_only=True) 
 
     # ─────── WRITE‑ONLY HOOKS ──────────────────────────────────────
     
@@ -91,7 +92,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "employee_code",
 
             # flattened-position R/W
-            "name","email","phone","country_code","warnings","warnings_count","avatar","role","position",
+            "name", "username","email","phone","country_code","warnings","warnings_count","avatar","role","position",
             "managerial_level","status",
 
             "company_name","org_path","direct_manager",
