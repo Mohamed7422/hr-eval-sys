@@ -25,9 +25,10 @@ class CompetencyViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         role = self.request.user.role
+        action = self.action
 
         # LIST & RETRIEVE
-        if self.action in ("list", "retrieve"):
+        if action in ("list", "retrieve"):
             if role in ("ADMIN", "HR"):
                 return [(IsAdmin|IsHR)()]
             if role in ("HOD", "LM"):
@@ -35,15 +36,21 @@ class CompetencyViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
 
         # CREATE / UPDATE / DELETE
-        if role in ("ADMIN", "HR"):
-            return [(IsAdmin|IsHR)()]
-
-        if role in ("HOD", "LM"):
+        if action in ("create", "update", "partial_update"):
+            if role in ("ADMIN", "HR"):
+                return [(IsAdmin|IsHR)()]
             return [(IsHOD|IsLineManager)()]
 
+        if action == "destroy":
+            if role in ("ADMIN", "HR"):
+                return [(IsAdmin|IsHR)()]
+            self.permission_denied(self.request)     
+                
+            
         # Everyone else forbidden
-        self.permission_denied(self.request)
+        self.permission_denied(self.request) 
 
+        return super().get_permissions()
     def get_queryset(self):
         qs = Competency.objects.select_related("evaluation__employee__user")
         user = self.request.user

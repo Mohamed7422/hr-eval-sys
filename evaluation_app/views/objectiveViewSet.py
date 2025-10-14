@@ -7,7 +7,7 @@ from evaluation_app.filters import ObjectiveFilter
 from evaluation_app.models import Objective, EmployeePlacement
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
 from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager 
- 
+from django.db.models import Q 
 class ObjectiveViewSet(viewsets.ModelViewSet):
     queryset         = Objective.objects.select_related("evaluation__employee")
     serializer_class = ObjectiveSerializer
@@ -44,7 +44,7 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        qs   = super().get_queryset()
+        qs   = Objective.objects.select_related("evaluation__employee__user")
         user = self.request.user
 
         if user.role in ("ADMIN", "HR"):

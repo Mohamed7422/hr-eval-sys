@@ -42,6 +42,7 @@ print("🔒 ALLOWED_HOSTS =", ALLOWED_HOSTS)
 APPEND_SLASH = False
 # Application definition
 
+raw_cors  = os.environ.get("CORS_ALLOWED_ORIGINS", "")
 raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
 # split on commas, strip any whitespace
 CSRF_TRUSTED_ORIGINS = [url.strip() for url in raw.split(",") if url.strip()]
@@ -99,8 +100,8 @@ MIDDLEWARE = [
 ]
 
 # -- Allow only your production front-end(s) --------------------
-CORS_ALLOW_ALL_ORIGINS = True
-#CORS_ALLOWED_ORIGINS = []
+#CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [url.strip() for url in raw_cors.split(",") if url.strip()]
      
   # allow all origins (not recommended for production)
    # "https://hr-evaluation-system.vercel.app/",
