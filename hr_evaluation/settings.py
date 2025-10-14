@@ -44,8 +44,11 @@ APPEND_SLASH = False
 
 raw_cors  = os.environ.get("CORS_ALLOWED_ORIGINS", "")
 raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in raw_cors.split(",") if origin.strip()]
 # split on commas, strip any whitespace
-CSRF_TRUSTED_ORIGINS = [url.strip() for url in raw.split(",") if url.strip()]
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -101,14 +104,14 @@ MIDDLEWARE = [
 
 # -- Allow only your production front-end(s) --------------------
 #CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [url.strip() for url in raw_cors.split(",") if url.strip()]
+
      
   # allow all origins (not recommended for production)
    # "https://hr-evaluation-system.vercel.app/",
     # add staging or local ngrok URLs if needed
 
 # If your frontend sends cookies / Authorization header:
-CORS_ALLOW_CREDENTIALS = True
+
 
 CORS_ALLOW_METHODS = [
     'DELETE',
