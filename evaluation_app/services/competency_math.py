@@ -117,4 +117,16 @@ def calculate_competencies_score(evaluation:Evaluation, *, cap_at_100: bool = Tr
     total = 0.0
     for c in evaluation.competency_set.all():
         total += competency_score(c, cap_at_100=cap_at_100)
-    return _round_to_2dp(total)
+    total = _round_to_2dp(total)
+    #get the total weight of all competencies in this evaluation based on employee managerial level
+    # Get competency weight % from WeightsConfiguration
+    try:
+        weights_per_level = WeightsConfiguration.objects.get(
+            level_name=evaluation.employee.managerial_level
+        )
+        competency_total_weight = float(weights_per_level.competency_weight or 0.0)
+    except WeightsConfiguration.DoesNotExist:
+        competency_total_weight = 0.0
+    
+    # Apply weight and round
+    return _round_to_2dp(total * (competency_total_weight/100))

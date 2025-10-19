@@ -19,10 +19,11 @@ from evaluation_app.services.evaluation_math import calculate_evaluation_score
 
 class EvaluationFilter(django_filters.FilterSet):
     employee_id = django_filters.UUIDFilter(field_name="employee__employee_id")
+    user_id = django_filters.UUIDFilter(field_name="employee__user__user_id")
 
     class Meta:
         model = Evaluation
-        fields = ["employee", "employee_id"]  # both work
+        fields = ["employee", "employee_id" , "user_id"]  # both work
 
 class EvaluationViewSet(viewsets.ModelViewSet):
     """
