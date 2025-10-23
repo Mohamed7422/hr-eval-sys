@@ -22,10 +22,7 @@ class UserCreateAPIView(viewsets.ModelViewSet):
         if self.action in ("create", "destroy"):
             return [(IsHR | IsAdmin)()]
         if self.action in ("update", "partial_update"):
-            if self.request.user.role in  ("ADMIN", "HR"):
-                return [(IsAdmin | IsHR)()]
-            else:
-               return [IsSelfOrAdminHR()]
+            return [IsSelfOrAdminHR()]
         return [IsAuthenticated()]
     
     def get_queryset(self):

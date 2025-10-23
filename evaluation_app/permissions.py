@@ -44,6 +44,10 @@ class IsSelfOrAdminHR(BasePermission):
     Employees can view their own profile.
     HR & Admin can view everyone.
     """
+    def has_permission(self, request, view):
+        #Allow view-level access for authenticated users
+        # The actual filtering happens in has_object_permission
+        return request.user and request.user.is_authenticated
     def has_object_permission(self, request, view, obj):
         if request.user.role in ("ADMIN", "HR"):
             return True

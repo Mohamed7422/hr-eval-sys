@@ -2,7 +2,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
@@ -66,7 +65,7 @@ class EmailLoginSerializer(TokenObtainPairSerializer):
         role_display = dict(Role.choices)[role] if role else None
 
         # Build tokens manually 
-        refresh = RefreshToken.for_user(user)
+        refresh = self.get_token(user)
         data = {
             "refresh": str(refresh),
             "access": str(refresh.access_token),

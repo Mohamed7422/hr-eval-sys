@@ -26,7 +26,12 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]  # default fallback
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = EmployeeFilter
-    search_fields = ['user__name', 'user__email', 'employee_code', 'company__name', 'user__role'] 
+    search_fields = ['user__name',
+                    'user__email',
+                    'user__user_id',
+                    'employee_code',
+                    'company__name',
+                    'user__role'] 
      
        
     
