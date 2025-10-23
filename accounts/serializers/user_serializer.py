@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from evaluation_app.utils import LabelChoiceField
+from django.utils  import timezone
 
-
+DEFAULT_PASSWORD = "defaultpassword123"
 
 User = get_user_model()
 
@@ -19,9 +20,15 @@ class UserCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ("user_id", "created_at", "updated_at")  # user_id is auto-generated
 
     def create(self, validated_data):  # called by viewset
-        password = validated_data.pop("password","defaultpassword123")  # default if not supplied
+        password = validated_data.pop("password",DEFAULT_PASSWORD)  # default if not supplied
         user = User(**validated_data)
         user.set_password(password)          # hash the password
+       
+        if hasattr(user, "is_default_password"):
+            user.is_default_password = (password == DEFAULT_PASSWORD)
+        if hasattr(user, "password_last_changed"):
+            user.password_last_changed = None if user.is_default_password else timezone.now()      
+        
         user.save()
         return user 
 
@@ -35,3 +42,4 @@ class UserCreateSerializer(serializers.ModelSerializer):
             instance.set_password(pwd)
         instance.save()
         return instance  
+    

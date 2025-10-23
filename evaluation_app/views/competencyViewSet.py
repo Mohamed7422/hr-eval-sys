@@ -6,7 +6,7 @@ from evaluation_app.filters import CompetencyFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from evaluation_app.models import Competency, EmployeePlacement
 from evaluation_app.serializers.competency_serializer import CompetencySerializer
-from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR
+from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager
 from evaluation_app.services.competency_math import recalculate_competency_weights
 from django.db.models import Q
 class CompetencyViewSet(viewsets.ModelViewSet):

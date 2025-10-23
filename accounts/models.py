@@ -2,7 +2,7 @@
 from django.db import models
 import uuid
 from django.utils import timezone
-from django.contrib.auth.models import AbstractUser, PermissionsMixin
+from django.contrib.auth.models import AbstractUser
 
 # Create your models here.
 class Role(models.TextChoices):
@@ -29,8 +29,9 @@ class User(AbstractUser):
     position      = models.CharField(max_length=120, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)  
-
-
+    is_default_password = models.BooleanField(default=False)
+    password_last_changed = models.DateTimeField(null=True, blank=True)
+     
     def __str__(self):
         return self.get_full_name() or self.username
 
