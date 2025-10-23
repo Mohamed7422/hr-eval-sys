@@ -62,14 +62,14 @@ class EmailLoginSerializer(TokenObtainPairSerializer):
          # Get role display value after user is authenticated
         from accounts.models import Role
         role = getattr(user, "role", None)
-        role_display = dict(Role.choices)[role] if role else None
+        #role_display = dict(Role.choices)[role] if role else None
 
         # Build tokens manually 
         refresh = self.get_token(user)
         data = {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
-            "role": role_display,
+            "role": role,
             "name": getattr(user, "name", None) or user.email or user.username,
             "is_default_password": getattr(user, "is_default_password", False),
         }
