@@ -1,5 +1,4 @@
 # evaluation_app/serializers/auth_serializers.py
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -12,18 +11,7 @@ class EmailLoginSerializer(TokenObtainPairSerializer):
     2) username + password
     3) email + username + password (both must match)
     """
-    username = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
-    password = serializers.CharField(write_only=True)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # SimpleJWT auto-adds a required field named self.username_field (usually "username")
-        # Relax it so email-only logins don't error.
-        if self.username_field in self.fields:
-            self.fields[self.username_field].required = False
-            self.fields[self.username_field].allow_blank = True
-
+    
 
     @classmethod
     def get_token(cls, user):
