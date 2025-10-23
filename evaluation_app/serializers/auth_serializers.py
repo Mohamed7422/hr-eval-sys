@@ -28,10 +28,8 @@ class EmailLoginSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        role = getattr(user, "role", None)
-        if role:
-            from accounts.models import Role
-            token["role"] = dict(Role.choices)[role]
+        
+        token["role"] = getattr(user, "role", None)
        
         token["name"] = getattr(user, "name", None) or user.email or user.username
         token["is_default_password"] = getattr(user, "is_default_password", False)
