@@ -1,8 +1,7 @@
 # evaluation_app/serializers/auth_serializers.py
 from rest_framework import serializers
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
@@ -38,41 +37,4 @@ class EmailLoginSerializer(TokenObtainPairSerializer):
         token["is_default_password"] = getattr(user, "is_default_password", False)
         return token
 
-    def validate(self, attrs):
-        username = attrs.get("username") or None
-        email = attrs.get("email") or None
-        password = attrs.get("password")
-        
-        if not (username or email):
-            raise serializers.ValidationError("Provide username or email.")
-
-         
-        user = authenticate(
-            request=self.context.get("request"),
-            username=username,  
-            email=email,      
-            password=password,
-        )
-        if not user:
-            raise serializers.ValidationError("Invalid credentials.")
-
-         
-        if username and email and (user.username != username or user.email.lower() != email.lower()):
-            raise serializers.ValidationError("Email and username do not match.")
-        
-         # Get role display value after user is authenticated
-        from accounts.models import Role
-        role = getattr(user, "role", None)
-        role_display = dict(Role.choices)[role] if role else None
-
-        # Build tokens manually 
-        refresh = RefreshToken.for_user(user)
-        data = {
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "role": role_display,
-            "name": getattr(user, "name", None) or user.email or user.username,
-            "is_default_password": getattr(user, "is_default_password", False),
-        }
-        self.user = user 
-        return data
+    
