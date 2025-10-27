@@ -19,6 +19,7 @@ from django.urls import path
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.views.generic import TemplateView
+from evaluation_app.views.profileView import MyProfileView
 
 urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
@@ -28,4 +29,5 @@ urlpatterns = [
     path("", TemplateView.as_view(template_name="welcome.html"), name="home"),
     path("api/org/", include("evaluation_app.urls.org_apis")),
     path("api/accounts/", include("accounts.urls")),
+    path("api/my-profile/", MyProfileView.as_view(), name="my-profile"),
 ]

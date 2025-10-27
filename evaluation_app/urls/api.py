@@ -7,6 +7,7 @@ from evaluation_app.views.objectiveViewSet import ObjectiveViewSet
 from evaluation_app.views.competencyViewSet import CompetencyViewSet
 from evaluation_app.views.weightsConfigurationViewSet import WeightConfigViewSet
 
+
 from django.urls import path
 from rest_framework_simplejwt.views import  (
            TokenRefreshView,    # POST /api/auth/refresh/
@@ -25,6 +26,7 @@ router.register("objectives", ObjectiveViewSet, basename="objectives") #GET /api
 router.register("competencies", CompetencyViewSet, basename="competency") #GET /api/competencies/
 #GET /api/weights-configuration/ & GET /api/weights-configuration/{level_name}/
 router.register("weights-configuration", WeightConfigViewSet, basename="weights-configuration") 
+
 
 urlpatterns = [
     # JWT
