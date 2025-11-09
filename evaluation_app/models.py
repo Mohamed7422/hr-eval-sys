@@ -218,7 +218,13 @@ class Evaluation(models.Model):
     period        = models.CharField(max_length=20)      # e.g. '2025-Q1'
     created_at    = models.DateTimeField(default=timezone.now) #format "%Y-%m-%d %H:%M:%S"
     updated_at    = models.DateTimeField(auto_now=True) #format "%Y-%m-%d %H:%M:%S"
-
+    
+    # Weights percentages
+    obj_weight_pct = models.PositiveSmallIntegerField(null=True, blank=True)
+    comp_weight_pct = models.PositiveSmallIntegerField(null=True, blank=True)
+    comp_core_pct = models.PositiveSmallIntegerField(null=True, blank=True)
+    comp_leadership_pct = models.PositiveSmallIntegerField(null=True, blank=True)
+    comp_functional_pct = models.PositiveSmallIntegerField(null=True, blank=True)
     # convenience M2M via through tables
     #objectives   = models.ManyToManyField("Objective", through="EmployeeObjective", related_name="employees")
     #competencies = models.ManyToManyField("Competency", through="EmployeeCompetency", related_name="employees")

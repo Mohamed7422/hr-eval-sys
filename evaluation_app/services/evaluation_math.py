@@ -9,6 +9,10 @@ def calculate_evaluation_score(evaluation: Evaluation, *
     # Compute the two block scores (0...100)
     objectives_score = Decimal(str (calculate_objectives_score(evaluation, cap_at_100=cap_at_100)))
     competencies_score =Decimal(str (calculate_competencies_score(evaluation, cap_at_100=cap_at_100))) # calculate_competencies_score(evaluation, cap_at_100=cap_at_100)
+    
+    # Use snapshot weights instead of WeightsConfiguration
+    obj_weight = Decimal(str(evaluation.obj_weight_pct or 0))
+    comp_weight = Decimal(str(evaluation.comp_weight_pct or 0))
 
     # Managerial-level block weights (percentages)
     try:
@@ -19,19 +23,19 @@ def calculate_evaluation_score(evaluation: Evaluation, *
         return 0.0
 
     # Normalize if they don't sum to 100
-    total_weight = objectives_weight + competencies_weight
+    total_weight = obj_weight + comp_weight
     if total_weight > 0 and total_weight != Decimal("100"):
         factor = Decimal("100") / total_weight # 100 / (objective_weight + competency_weight) 
-        objectives_weight *= factor 
-        competencies_weight *= factor 
+        obj_weight *= factor 
+        comp_weight *= factor 
 
     # Compute the evaluation score 
-    evlauation_score = ((objectives_weight * objectives_score) + (competencies_weight * competencies_score)) / Decimal("100")    
+    evlauation_score = ((obj_weight * objectives_score) + (comp_weight * competencies_score)) / Decimal("100")    
     evlauation_score = evlauation_score.quantize(Decimal("0.01"))
 
 
     if persist: 
-       Evaluation.objects.filter(pk=evaluation.pk).update(score=objectives_score)
+       Evaluation.objects.filter(pk=evaluation.pk).update(score=evlauation_score)
        evaluation.score = evlauation_score
       
     return float(evlauation_score)

@@ -10,6 +10,7 @@ from evaluation_app.serializers.competency_serializer import CompetencySerialize
 from evaluation_app.services.objective_math import calculate_objectives_score
 from evaluation_app.services.competency_math import calculate_competencies_score
 from evaluation_app.services.evaluation_math import calculate_evaluation_score
+from evaluation_app.models import WeightsConfiguration
 
 User = get_user_model()
 
@@ -69,7 +70,27 @@ class EvaluationSerializer(serializers.ModelSerializer):
 
      # ── create / update helpers ──────────────────────────
     def create(self, validated_data):
-        return super().create(validated_data)  
+        evaluation_instance = super().create(validated_data)
+        lvl = evaluation_instance.employee.managerial_level
+        try:
+            weights = WeightsConfiguration.objects.get(level_name=lvl)
+
+            evaluation_instance.obj_weight_pct = weights.objective_weight or 0
+            evaluation_instance.comp_weight_pct = weights.competency_weight or 0
+            evaluation_instance.comp_core_pct = weights.core_weight or 0
+            evaluation_instance.comp_leadership_pct = weights.leadership_weight or 0
+            evaluation_instance.comp_functional_pct = weights.functional_weight or 0
+            evaluation_instance.save(update_fields=[
+                "obj_weight_pct",
+                "comp_weight_pct", 
+                "comp_core_pct",
+                "comp_leadership_pct",
+                "comp_functional_pct"
+            ]) 
+        except WeightsConfiguration.DoesNotExist:
+            pass     
+
+        return  evaluation_instance 
     
     def update(self, instance, validated_data):
         return super().update(instance, validated_data)

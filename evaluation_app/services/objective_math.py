@@ -1,6 +1,6 @@
 
 from evaluation_app.models import Evaluation, Objective, WeightsConfiguration
-from decimal import Decimal, ROUND_HALF_UP,ROUND_DOWN
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.utils import timezone
 import logging 
@@ -103,8 +103,8 @@ def calculate_objectives_score(
     # Pull the managerial-level objective weight (e.g., IC might have 60%)
     obj_weight_percent = Decimal("0")
     try:
-        ml_weights = WeightsConfiguration.objects.get(level_name=evaluation.employee.managerial_level)
-        obj_weight_percent = _d(ml_weights.objective_weight or 0)
+       # ml_weights = WeightsConfiguration.objects.get(level_name=evaluation.employee.managerial_level)
+        obj_weight_percent = _d(evaluation.obj_weight_pct or 0)
     except WeightsConfiguration.DoesNotExist:
         obj_weight_percent = Decimal("0")
 

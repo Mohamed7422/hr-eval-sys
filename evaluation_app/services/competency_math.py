@@ -1,27 +1,29 @@
 
 from evaluation_app.models import (
-    Evaluation, Competency, CompetencyCategory, WeightsConfiguration
+    Evaluation, Competency, CompetencyCategory
 )
 from typing import Dict
 from django.db import transaction
 from django.utils import timezone
 
-_Cat_FIELDS = {
+'''_Cat_FIELDS = {
     CompetencyCategory.CORE: "core_weight",
     CompetencyCategory.LEADERSHIP: "leadership_weight",
     CompetencyCategory.FUNCTIONAL: "functional_weight",
 }
-
+'''
 def _round_to_2dp(value: float) -> float:
     return float(f"{(value or 0):0.2f}")
-def category_weights_for_level(level) -> Dict[str, float]:
+def category_weights_for_evaluation(evaluation) -> Dict[str, float]:
 
     """
     Return {category_value: total_weight} for the employee level.
     Missing config/fields -> 0.0
     """
 
-    try:
+
+
+    ''' try:
         weights_per_level = WeightsConfiguration.objects.get(level_name = level)   
     except WeightsConfiguration.DoesNotExist:
         return {cat: 0.0 for cat in _Cat_FIELDS.keys()}
@@ -30,8 +32,12 @@ def category_weights_for_level(level) -> Dict[str, float]:
     
     for cat, field in _Cat_FIELDS.items(): 
         out[cat] = getattr(weights_per_level, field, 0.0) or 0.0  
-         
-    return out
+    '''     
+    return {
+        CompetencyCategory.CORE: float(evaluation.comp_core_pct or 0.0),
+        CompetencyCategory.LEADERSHIP: float(evaluation.comp_lead_pct or 0.0),
+        CompetencyCategory.FUNCTIONAL: float(evaluation.comp_func_pct or 0.0),
+    }
 
 def recalculate_competency_weights(evaluation:Evaluation) -> None:
     """
@@ -46,7 +52,7 @@ def recalculate_competency_weights(evaluation:Evaluation) -> None:
     if not comptencies:
         return
     # returned dict : ex: {Core: 30.0, Leadership: 20.0, Functional: 50.0}
-    category_weights_totals = category_weights_for_level(evaluation.employee.managerial_level)
+    category_weights_totals = category_weights_for_evaluation(evaluation)
     
     # ex: {Core: [comp1, comp2], Leadership: [comp3, comp4], Functional: [comp5, comp6]}
     by_cat: Dict[str, list[Competency]] = {}
@@ -118,15 +124,9 @@ def calculate_competencies_score(evaluation:Evaluation, *, cap_at_100: bool = Tr
     for c in evaluation.competency_set.all():
         total += competency_score(c, cap_at_100=cap_at_100)
     total = _round_to_2dp(total)
-    #get the total weight of all competencies in this evaluation based on employee managerial level
+    # get the total weight of all competencies in this evaluation based on employee managerial level
     # Get competency weight % from WeightsConfiguration
-    try:
-        weights_per_level = WeightsConfiguration.objects.get(
-            level_name=evaluation.employee.managerial_level
-        )
-        competency_total_weight = float(weights_per_level.competency_weight or 0.0)
-    except WeightsConfiguration.DoesNotExist:
-        competency_total_weight = 0.0
     
-    # Apply weight and round
+    competency_total_weight = float(evaluation.comp_weight_pct or 0.0)
+     
     return _round_to_2dp(total * (competency_total_weight/100))

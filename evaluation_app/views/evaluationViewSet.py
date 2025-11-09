@@ -122,8 +122,8 @@ class EvaluationViewSet(viewsets.ModelViewSet):
       
     # ----------------------------------------------------------       
 
-    def perfom_update(self, serializer):
-        instance = self.save()
+    def perform_update(self, serializer):
+        instance = serializer.save()
         calculate_evaluation_score(instance, persist=True)
 
         
