@@ -1,0 +1,5 @@
+run = "python3 manage.py runserver 0.0.0.0:8000"
+entrypoint = "manage.py"
+
+[deployment]
+run = ["sh", "-c", "python3 manage.py migrate && python3 manage.py collectstatic --noinput && gunicorn hr_evaluation.wsgi:application --bind 0.0.0.0:8000"]
