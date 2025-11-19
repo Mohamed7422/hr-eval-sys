@@ -144,6 +144,12 @@ class Employee(models.Model):
     location = models.CharField(max_length=180,blank=True) 
     branch = models.CharField(max_length=20, choices=BranchType.choices, blank=True, null=True, default=BranchType.OFFICE)
 
+    # ─── Cached organizational hierarchy ───
+    latest_placement_id = models.UUIDField(null=True, blank=True)
+    dept_path = models.CharField(max_length=500, blank=True, default="")  # "Sales › Region West"
+    direct_manager_name = models.CharField(max_length=120, blank=True, default="")
+    direct_manager_id = models.UUIDField(null=True, blank=True) 
+    
     # Legacy fields from old system
     #departments = models.ManyToManyField(Department, through="EmployeeDepartment", related_name="employees")
 

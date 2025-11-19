@@ -43,8 +43,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
      # ─────── PLACEMENT (READ-ONLY) ─────────────────────
     #placement  = serializers.SerializerMethodField()
-    org_path   = serializers.SerializerMethodField()
-    direct_manager = serializers.SerializerMethodField()
+    #org_path   = serializers.SerializerMethodField()
+    #direct_manager = serializers.SerializerMethodField()
 
     # still expose the raw IDs if the front‑end needs them
     company_id = serializers.PrimaryKeyRelatedField(
@@ -61,7 +61,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
     )
 
     gender = LabelChoiceField(source="user.gender", choices=User._meta.get_field("gender").choices, required=False, read_only=True) 
-
+    
     # ─────── WRITE‑ONLY HOOKS ──────────────────────────────────────
     
     # …or update user *fields* inline
@@ -84,6 +84,11 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     # read-only fields derived from placement
     department = serializers.SerializerMethodField(read_only=True)
+
+    org_path = serializers.CharField(source="dept_path", read_only=True)
+    direct_manager = serializers.CharField(source="direct_manager_name", read_only=True)
+    
+
     class Meta:
         model  = Employee
         fields = [
@@ -112,12 +117,16 @@ class EmployeeSerializer(serializers.ModelSerializer):
         read_only_fields = ("employee_id",)
 
     def get_department(self, obj): 
+        
+        if obj.dept_path:
+            return obj.dept_path.split(" › ")[0]
+        return None
         # return the department of the first placement if any
-        p = self._latest_placement(obj)
-        return p.department.name if p and p.department else None
+       # p = self._latest_placement(obj)
+        #return p.department.name if p and p.department else None
      
     # ---------- Placement helpers ----------
-    def _latest_placement(self, obj):
+    '''def _latest_placement(self, obj):
         """Optimized to use prefetched data and reduce queries"""
         if hasattr(obj, "placements_cache") and obj.placements_cache:
             return obj.placements_cache[0]
@@ -136,10 +145,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
             )
             .filter(employee=obj)
             .order_by("-assigned_at")
-            .first())
+            .first()) '''
     
 
-    def _resolve_lineage(self, p: EmployeePlacement):
+    '''def _resolve_lineage(self, p: EmployeePlacement):
         """Optimized hierarchy resolution using prefetched data"""
         if not p:
             return None, None, None, None, None, None
@@ -177,9 +186,9 @@ class EmployeeSerializer(serializers.ModelSerializer):
         else:
             return None, None, None, None, None, None
 
-        return level, dept, sdep, sec, ssec, manager
+        return level, dept, sdep, sec, ssec, manager'''
 
-    def get_placement(self, obj):
+    '''def get_placement(self, obj):
         p = self._latest_placement(obj)
         if not p:
             return None
@@ -203,12 +212,12 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "sub_section": (
                 {"id": str(ssec.sub_section_id), "name": ssec.name} if ssec else None
             ),
-        }
+        }'''
 
     
     
 
-    def get_org_path(self, obj):
+    '''def get_org_path(self, obj):
         """Optimized org path calculation"""
         p = self._latest_placement(obj)
         if not p:
@@ -225,9 +234,9 @@ class EmployeeSerializer(serializers.ModelSerializer):
         if p.sub_section:
             path_parts.append(p.sub_section.name)
             
-        return " › ".join(path_parts)
+        return " › ".join(path_parts)'''
 
-    def get_direct_manager(self, obj):
+    '''def get_direct_manager(self, obj):
         """Optimized manager lookup"""
         p = self._latest_placement(obj)
         if not p:
@@ -244,7 +253,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         elif p.department and p.department.manager:
             manager = p.department.manager
             
-        return manager.name if manager else None
+        return manager.name if manager else None'''
     
     def create(self, validated_data):
         user_payload = validated_data.pop("user", None)

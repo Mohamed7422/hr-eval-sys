@@ -106,3 +106,42 @@ def _objective_changed(sender, instance, **kwargs):
 @receiver([post_save, post_delete], sender=Competency)
 def _competency_changed(sender, instance, **kwargs):
     calculate_evaluation_score(instance.evaluation, persist=True)
+#-------------------------------------------
+
+
+@receiver(post_save, sender=EmployeePlacement)
+def update_employee_placement_cache(sender, instance, created, **kwargs):
+    """Sync Employee cache when placement changes"""
+    employee = instance.employee
+    
+    # Build path
+    path_parts = []
+    if instance.department:
+        path_parts.append(instance.department.name)
+    if instance.sub_department:
+        path_parts.append(instance.sub_department.name)
+    if instance.section:
+        path_parts.append(instance.section.name)
+    if instance.sub_section:
+        path_parts.append(instance.sub_section.name)
+    
+    # Get manager from deepest level
+    manager = None
+    if instance.sub_section and instance.sub_section.manager:
+        manager = instance.sub_section.manager
+    elif instance.section and instance.section.manager:
+        manager = instance.section.manager
+    elif instance.sub_department and instance.sub_department.manager:
+        manager = instance.sub_department.manager
+    elif instance.department and instance.department.manager:
+        manager = instance.department.manager
+    
+    # Update cache
+    employee.latest_placement_id = instance.placement_id
+    employee.dept_path = " › ".join(path_parts)
+    employee.direct_manager_name = manager.name if manager else ""
+    employee.direct_manager_id = manager.user_id if manager else None
+    employee.save(update_fields=[
+        'latest_placement_id', 'dept_path', 
+        'direct_manager_name', 'direct_manager_id'
+    ])
