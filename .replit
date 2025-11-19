@@ -1,5 +1,17 @@
 run = "python3 manage.py runserver 0.0.0.0:8000"
 entrypoint = "manage.py"
+modules = ["python-3.11"]
 
 [deployment]
-run = ["sh", "-c", "python3 manage.py migrate && python3 manage.py collectstatic --noinput && gunicorn hr_evaluation.wsgi:application --bind 0.0.0.0:8000"]
+run = [
+  "sh",
+  "-c",
+  "python3 manage.py migrate && python3 manage.py collectstatic --noinput && gunicorn hr_evaluation.wsgi:application --bind 0.0.0.0:8000",
+]
+deploymentTarget = "cloudrun"
+
+[nix]
+
+[[ports]]
+localPort = 8000
+externalPort = 80
