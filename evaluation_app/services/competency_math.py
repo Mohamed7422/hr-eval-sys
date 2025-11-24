@@ -35,8 +35,8 @@ def category_weights_for_evaluation(evaluation) -> Dict[str, float]:
     '''     
     return {
         CompetencyCategory.CORE: float(evaluation.comp_core_pct or 0.0),
-        CompetencyCategory.LEADERSHIP: float(evaluation.comp_lead_pct or 0.0),
-        CompetencyCategory.FUNCTIONAL: float(evaluation.comp_func_pct or 0.0),
+        CompetencyCategory.LEADERSHIP: float(evaluation.comp_leadership_pct or 0.0),
+        CompetencyCategory.FUNCTIONAL: float(evaluation.comp_functional_pct or 0.0),
     }
 
 def recalculate_competency_weights(evaluation:Evaluation) -> None:
