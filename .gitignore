@@ -25,3 +25,8 @@ Thumbs.db
 .vercel
 .env*.local
 .env
+
+
+.replit
+replit.nix
+.config/
