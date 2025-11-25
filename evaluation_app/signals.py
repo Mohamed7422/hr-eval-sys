@@ -80,11 +80,12 @@ def _objective_saved(sender, instance:Objective, created,update_fields=None ,**k
         if uf.issubset({"weight","updated_at"}):
             return
     recalculate_objective_weights(instance.evaluation)
-
+    calculate_evaluation_score(instance.evaluation, persist=True)
 
 @receiver(post_delete,sender=Objective)
 def _objective_deleted(sender, instance:Objective, **kwargs):
     recalculate_objective_weights(instance.evaluation)
+    calculate_evaluation_score(instance.evaluation, persist=True)
 
 
 #-------------------------------------------
@@ -92,20 +93,21 @@ def _objective_deleted(sender, instance:Objective, **kwargs):
 @receiver(post_save, sender=Competency)
 def _competency_saved(sender, instance: Competency, **kwargs):
     recalculate_competency_weights(instance.evaluation)
-
+    calculate_evaluation_score(instance.evaluation, persist=True)
+    
 @receiver(post_delete, sender=Competency)
 def _competency_deleted(sender, instance: Competency, **kwargs):
     recalculate_competency_weights(instance.evaluation)
-
+    calculate_evaluation_score(instance.evaluation, persist=True)
 
 #-------------------------------------------
-@receiver([post_save, post_delete], sender=Objective)
+'''@receiver([post_save, post_delete], sender=Objective)
 def _objective_changed(sender, instance, **kwargs):
     calculate_evaluation_score(instance.evaluation, persist=True)
-
+    
 @receiver([post_save, post_delete], sender=Competency)
 def _competency_changed(sender, instance, **kwargs):
-    calculate_evaluation_score(instance.evaluation, persist=True)
+    calculate_evaluation_score(instance.evaluation, persist=True)'''
 #-------------------------------------------
 
 
