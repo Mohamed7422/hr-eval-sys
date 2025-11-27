@@ -146,11 +146,14 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         emp_id = params.get("employee_id")
         type_filter = params.get("type")
         status_filter = params.get("status")
-        start = datetime.fromisoformat(params.get("from")).astimezone(timezone.utc)
-        end = datetime.fromisoformat(params.get("to")).astimezone(timezone.utc)
+        year = params.get("year")
+       # start = datetime.fromisoformat(params.get("from")).astimezone(timezone.utc)
+      #  end = datetime.fromisoformat(params.get("to")).astimezone(timezone.utc)
+        from_date = params.get("from")
+        to_date = params.get("to")
         
         qs = self.get_queryset()
-        print(f"qs: {emp_id} type: {type_filter} status: {status_filter} start: {start} end: {end}") 
+        print(f"qs: {emp_id} type: {type_filter} status: {status_filter} start: {from_date} end: {to_date}") 
         if emp_id:
             qs = qs.filter(employee__employee_id=emp_id)
         # Normalize and validate type using LabelChoiceField supporting labels and values
@@ -187,21 +190,53 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         else:
             qs = qs.filter(status=EvalStatus.COMPLETED)
 
-        if start:
-            qs = qs.filter(created_at__gte=start)
-        if end:
-            qs = qs.filter(updated_at__lte=end)
+        if year: 
+            try:
+                year_int = int(year)
+                qs = qs.filter(created_at__year=year_int)   
+            except Exception:
+                return Response({
+                "error": "Invalid year format. Please provide a valid year (e.g., 2025)."
+                }, status=status.HTTP_400_BAD_REQUEST)
+             
+        else:
+           
+            if from_date:
+                try:
+                    start = datetime.fromisoformat(from_date).astimezone(timezone.utc)
+                    qs = qs.filter(created_at__gte=start)
+                except ValueError:
+                    return Response({
+                        "error": "Invalid 'from' date format. Use ISO format (YYYY-MM-DD)."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+        
+            if to_date:
+                try:
+                    end = datetime.fromisoformat(to_date).astimezone(timezone.utc)
+                    qs = qs.filter(updated_at__lte=end)
+                except ValueError:
+                    return Response({
+                        "error": "Invalid 'to' date format. Use ISO format (YYYY-MM-DD)."
+                    }, status=status.HTTP_400_BAD_REQUEST)
 
         agg = qs.aggregate(count=Count("pk"), 
                            sum=Sum(Coalesce("score", Decimal("0.00"))))
+        count = agg.get("count") or 0
         total = agg.get("sum") or Decimal("0.00")
+        
+        # Calculate average
+        if count > 0:
+            average = float(total) / count
+        else:
+            average = 0.0
+        
+        print(f"Summary - Count: {count}, Sum: {float(total)}, Average: {average}")
         print(f"agg: {agg}")
-        try:
-            total = float(total)
-        except Exception:
-            pass
+
+         
 
         return Response({
-            "count": agg.get("count") or 0,
-            "sum": total
+            "count": count,
+            "sum": float(total),
+            "average": round(average, 2)
         }, status=status.HTTP_200_OK)
