@@ -4,9 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from evaluation_app.filters import ObjectiveFilter
-from evaluation_app.models import Objective, EmployeePlacement
+from evaluation_app.models import Objective, EmployeePlacement, EvalStatus
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
-from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager 
+from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, CanTouchObjOrComp 
 from django.db.models import Q 
 class ObjectiveViewSet(viewsets.ModelViewSet):
     queryset         = Objective.objects.select_related("evaluation__employee")
@@ -33,13 +33,27 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
         if action in ("create", "update", "partial_update"):
             if role in ("ADMIN", "HR"):
                 return [(IsAdmin|IsHR)()]
-            return [(IsHOD|IsLineManager)()]
+            if role in ("HOD", "LM"):
+                return [(IsHOD|IsLineManager)()]
+            
+            if role == "EMP":
+                return [CanTouchObjOrComp()]
+            self.permission_denied(
+                self.request,
+                message="You cannot update this objective.",)
 
         # ─── DESTROY ───────────────────────────────────────
         if action == "destroy":
             if role in ("ADMIN", "HR"):
                 return [(IsAdmin|IsHR)()]
-            self.permission_denied(self.request, message="You cannot delete objectives.")
+            
+            if role == "EMP":
+                return [CanTouchObjOrComp()]
+            
+            self.permission_denied(
+                self.request, 
+                message="You cannot delete objectives."
+            )
 
         return super().get_permissions()
 
@@ -57,13 +71,23 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
                     Q(sub_department__manager=user) | 
                     Q(section__manager=user) |
                     Q(sub_section__manager=user))).distinct() 
-        # regular employee only sees their own objectives
-        return qs.filter(evaluation__employee__user=user)
+        
+        
+        emp = getattr(user, "employee_profile", None)
+        if emp is None:
+            return qs.none()
+        return qs.filter(evaluation__employee=emp)
+        
+         
 
 
     def create(self, request, *args, **kwargs):
         ser = self.get_serializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        
+        checkCreateObjectivesForSelfEvaluation(self, request, ser)
+
+
         obj =ser.save() #triggers objective post_save signal to recalculate weights
         #pull in bulk update changes done by the signal
         obj.refresh_from_db(fields=["weight","updated_at"])
@@ -86,3 +110,31 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         kwargs['partial'] = True
         return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request,  *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(
+            {
+                "message": "Objective deleted successfully."
+            },
+            status=status.HTTP_204_NO_CONTENT
+        )
+
+        
+def checkCreateObjectivesForSelfEvaluation(self, request, ser,):
+     if request.user.role == "EMP":
+        evaluation_id = ser.validated_data.get("evaluation")
+        if evaluation_id:
+            emp = getattr(request.user, "employee_profile", None)
+            
+            if not emp or evaluation_id.employee != emp:
+                self.permission_denied(
+                    request,
+                    message="You cannot create objectives for this evaluation.",
+                )
+            if evaluation_id.status != EvalStatus.SELF_EVAL:
+                self.permission_denied(
+                    request,
+                    message="You cannot create objectives for this evaluation.",
+                )

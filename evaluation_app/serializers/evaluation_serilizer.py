@@ -93,6 +93,11 @@ class EvaluationSerializer(serializers.ModelSerializer):
         return  evaluation_instance 
     
     def update(self, instance, validated_data):
+        if instance.status == EvalStatus.SELF_EVAL:
+            if "status" in validated_data and validated_data["status"] != EvalStatus.SELF_EVAL:
+                raise serializers.ValidationError({"status": "Self evaluations cannot change status."})
+            #block reviewer transition, so it can't be changed
+            validated_data.pop("reviewer", None)
         return super().update(instance, validated_data)
     
     def get_objectives_score(self, obj):

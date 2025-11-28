@@ -70,6 +70,11 @@ class EvaluationViewSet(viewsets.ModelViewSet):
                 return [(IsAdmin|IsHR)()]
             self.permission_denied(self.request, message="You cannot delete evaluations.")
 
+        # ─── SELF_EVALUATE ───────────────────────────────────── 
+        if getattr(self, "action", None) == "self_evaluate": 
+            return [IsAuthenticated()]
+          
+
         # Fallback (shouldn’t get here)-Just in case
         return super().get_permissions()
         
@@ -240,3 +245,24 @@ class EvaluationViewSet(viewsets.ModelViewSet):
             "sum": float(total),
             "average": round(average, 2)
         }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=["post"], url_path = "self-evaluate")
+    def self_evaluate(self, request, *args, **kwargs):
+        user = request.user
+        emp = getattr(user, "employee_profile", None)
+        if not emp: 
+            return Response({"error": "User has no employee profile."}, status=status.HTTP_400_BAD_REQUEST)
+        payload = request.data or {}
+        eval_type = payload.get("type", EvalType.OPTIONAL)
+        period = payload.get("period")
+        if not period:
+            return Response({"error": "Period is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+        instance = Evaluation.objects.create(employee=emp,
+                                             type= eval_type,
+                                             period=period,
+                                             status=EvalStatus.SELF_EVAL,
+                                             reviewer=None,)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

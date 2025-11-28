@@ -45,6 +45,7 @@ class EvalStatus(models.TextChoices):
     APPROVED       = "APPROVED",       "Approved"
     REJECTED       = "REJECTED",       "Rejected"
     COMPLETED      = "COMPLETED",      "Completed"
+    SELF_EVAL      = "SELF_EVAL",      "Self Evaluation"
 
 class ObjectiveState(models.TextChoices):
     COMPLETED   = "COMPLETED",   "Completed"
