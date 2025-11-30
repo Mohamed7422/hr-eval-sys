@@ -71,10 +71,8 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         
         # ─── DESTROY ────────────────────────────────────────────
         if action == "destroy":
-            if role in ("ADMIN", "HR"):
-                return [(IsAdmin|IsHR)()]
-            self.permission_denied(self.request, message="You cannot delete evaluations.")
-
+            #checks happened in destry method down.
+            return [IsAuthenticated()]
         
           
 
@@ -92,6 +90,8 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         
         if self.action == "self_evaluate":
             qs = qs.filter(status=EvalStatus.SELF_EVAL)
+        elif self.action in ("destroy", "update", "partial_update"): 
+            pass   
         else:
             qs = qs.exclude(status=EvalStatus.SELF_EVAL)
        
@@ -145,6 +145,20 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        user = request.user
+
+        if instance.status == EvalStatus.SELF_EVAL:
+            emp = getattr(user, "employee_profile", None)
+            if emp and instance.employee == emp:
+                self.perform_destroy(instance)
+                return Response({
+                    "message": "Evaluation deleted successfully."
+                },status=status.HTTP_204_NO_CONTENT)
+
+        if user.role not in ("ADMIN", "HR", "HOD", "LM"):
+            self.permission_denied(request, message="You cannot delete evaluations.")    
+
+
         self.perform_destroy(instance)
         return Response({
             "message": "Evaluation deleted successfully."
