@@ -67,7 +67,10 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         if action in ("create", "update", "partial_update"):
             if role in ("ADMIN", "HR"):
                 return [(IsAdmin|IsHR)()]
-            return [(IsHOD|IsLineManager)()]
+            if role in ("HOD", "LM"):
+                return [(IsHOD|IsLineManager)()]
+            
+            return [IsAuthenticated()]
         
         # ─── DESTROY ────────────────────────────────────────────
         if action == "destroy":
@@ -139,6 +142,22 @@ class EvaluationViewSet(viewsets.ModelViewSet):
     # ----------------------------------------------------------       
 
     def perform_update(self, serializer):
+        
+        instance = serializer.instance
+        user = self.request.user
+
+        if instance.status == EvalStatus.SELF_EVAL:
+            emp = getattr(user, "employee_profile", None)
+            if emp and instance.employee == emp:
+                instance = serializer.save()
+                return instance
+
+        if user.role not in ("ADMIN", "HR", "HOD", "LM"):
+            self.permission_denied(
+                self.request,
+                message="You cannot update evaluations."
+            )
+
         instance = serializer.save()
         return instance
 
