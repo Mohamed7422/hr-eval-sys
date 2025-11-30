@@ -47,9 +47,14 @@ class EvaluationViewSet(viewsets.ModelViewSet):
 
     #----dynamic permissions----
     def get_permissions(self):
-        role = self.request.user.role
+        
         action = self.action
-
+        role = getattr(self.request.user, 'role', None)
+         
+        # ─── SELF_EVALUATE ───────────────────────────────────── 
+        if action == "self_evaluate": 
+            return [IsAuthenticated()]
+        
          # ─── LIST / RETRIEVE ─────────────────────────────────────
         if action in ("list", "retrieve"):
             if role in ("ADMIN", "HR"):
@@ -70,9 +75,7 @@ class EvaluationViewSet(viewsets.ModelViewSet):
                 return [(IsAdmin|IsHR)()]
             self.permission_denied(self.request, message="You cannot delete evaluations.")
 
-        # ─── SELF_EVALUATE ───────────────────────────────────── 
-        if getattr(self, "action", None) == "self_evaluate": 
-            return [IsAuthenticated()]
+        
           
 
         # Fallback (shouldn’t get here)-Just in case
@@ -86,6 +89,12 @@ class EvaluationViewSet(viewsets.ModelViewSet):
               .prefetch_related("objective_set", "competency_set")
               ) 
         user = self.request.user
+        
+        if self.action == "self_evaluate":
+            qs = qs.filter(status=EvalStatus.SELF_EVAL)
+        else:
+            qs = qs.exclude(status=EvalStatus.SELF_EVAL)
+       
         if user.role in ("ADMIN", "HR"):
             return qs
         if user.role in ("HOD", "LM"):
@@ -103,8 +112,6 @@ class EvaluationViewSet(viewsets.ModelViewSet):
      
     # ---- extra validation for LM / HOD -----------------------
     def perform_create(self, serializer):
-        print(">> perform_create by", self.request.user, self.request.user.role)
-        print(">> incoming validated data:", serializer.validated_data)
         user = self.request.user
         employee_id = self.request.data.get("employee_id")
 
@@ -156,7 +163,7 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         to_date = params.get("to")
         
         qs = self.get_queryset()
-        print(f"qs: {emp_id} type: {type_filter} status: {status_filter} start: {from_date} end: {to_date}") 
+
         if emp_id:
             qs = qs.filter(employee__employee_id=emp_id)
         # Normalize and validate type using LabelChoiceField supporting labels and values
@@ -231,10 +238,6 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         else:
             average = 0.0
         
-        print(f"Summary - Count: {count}, Sum: {float(total)}, Average: {average}")
-        print(f"agg: {agg}")
-
-         
 
         return Response({
             "count": count,
@@ -242,12 +245,21 @@ class EvaluationViewSet(viewsets.ModelViewSet):
             "average": round(average, 2)
         }, status=status.HTTP_200_OK)
     
-    @action(detail=False, methods=["post"], url_path = "self-evaluate")
+    @action(detail=False, methods=["post", "get"], url_path = "self-evaluate")
     def self_evaluate(self, request, *args, **kwargs):
         user = request.user
         emp = getattr(user, "employee_profile", None)
         if not emp: 
             return Response({"error": "User has no employee profile."}, status=status.HTTP_400_BAD_REQUEST)
+       
+       
+        if request.method == "GET":
+            qs = self.get_queryset()
+            serializer = self.get_serializer(qs, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+       
+       
+       
         payload = request.data or {}
         eval_type = payload.get("type", EvalType.OPTIONAL)
         period = payload.get("period")
