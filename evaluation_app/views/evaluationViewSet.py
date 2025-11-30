@@ -248,15 +248,31 @@ class EvaluationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post", "get"], url_path = "self-evaluate")
     def self_evaluate(self, request, *args, **kwargs):
         user = request.user
+        
+        if request.method == "GET":
+            qs = self.get_queryset()
+
+            employee_id = request.query_params.get("employee_id")
+            if employee_id:
+                if user.role not in ("ADMIN", "HR", "HOD", "LM"):
+                    return Response(
+                        {"error": "You don't have permission to filter by employee_id."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                qs = qs.filter(employee__employee_id=employee_id)
+            else:
+                # No employee_id filter - show current user's own self-evaluations
+                emp = getattr(user, "employee_profile", None)
+                if not emp:
+                    return Response({"error": "User has no employee profile."}, status=status.HTTP_400_BAD_REQUEST)
+                qs = qs.filter(employee=emp)
+    
+            serializer = self.get_serializer(qs, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+       
         emp = getattr(user, "employee_profile", None)
         if not emp: 
             return Response({"error": "User has no employee profile."}, status=status.HTTP_400_BAD_REQUEST)
-       
-       
-        if request.method == "GET":
-            qs = self.get_queryset()
-            serializer = self.get_serializer(qs, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
        
        
        
