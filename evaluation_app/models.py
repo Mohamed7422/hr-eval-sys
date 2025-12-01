@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Q
+from accounts.models import Role
 
 # ── Lookup / Enum helpers ────────────────────────────────────────────────
 
@@ -57,6 +58,16 @@ class CompetencyCategory(models.TextChoices):
     LEADERSHIP  = "LEADERSHIP",  "Leadership"
     FUNCTIONAL  = "FUNCTIONAL",  "Functional"
 
+class ActivityAction(models.TextChoices):
+    CREATED          = "CREATED",          "Created"
+    SUBMIT_HOD       = "SUBMIT_HOD",       "Submitted to HoD"
+    HOD_APPROVE      = "HOD_APPROVE",      "Approved by HoD"
+    HOD_REJECT       = "HOD_REJECT",       "Rejected by HoD"
+    SUBMIT_HR        = "SUBMIT_HR",        "Submitted to HR"
+    HR_APPROVE       = "HR_APPROVE",       "Approved by HR"
+    HR_REJECT        = "HR_REJECT",        "Rejected by HR"
+    COMMENT          = "COMMENT",          "Comment"
+    SELF_EVAL_CREATE = "SELF_EVAL_CREATE", "Self-evaluation created"
 # ── Core tables ──────────────────────────────────────────────────────────
 class Company(models.Model):
     company_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -279,3 +290,27 @@ class Competency(models.Model):
 
   #  class Meta:
    #     unique_together = ("evaluation","employee", "competency")
+
+class ActivityLog(models.Model):
+    activitylog_id   = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    evaluation       = models.ForeignKey(Evaluation, on_delete=models.CASCADE, related_name="activity_logs")
+
+    # free text "action" + status snapshot for the step we’re logging
+    activitystatus   = models.CharField(max_length=20, choices=EvalStatus.choices)
+    action           = models.CharField(max_length=31, choices=ActivityAction.choices)  # e.g. "Created", "Submitted to HoD", "Rejected by HR"
+
+    # who did it (FK) + denormalized name/role for faster list rendering
+    actor            = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                         null=True, blank=True, related_name="activity_logs")
+    actor_name       = models.CharField(max_length=120, blank=True, default="")
+    actor_role       = models.CharField(max_length=8, choices=Role.choices, blank=True, default="")
+
+    comment          = models.TextField(blank=True, default="")
+    is_rejection     = models.BooleanField(default=False)
+
+    created_at       = models.DateTimeField(default=timezone.now)
+    updated_at       = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["evaluation", "created_at"])]
+        ordering = ["created_at"]

@@ -11,12 +11,13 @@ from evaluation_app.services.objective_math import calculate_objectives_score
 from evaluation_app.services.competency_math import calculate_competencies_score
 from evaluation_app.services.evaluation_math import calculate_evaluation_score
 from evaluation_app.models import WeightsConfiguration
+from evaluation_app.serializers.activity_log import ActivityLogSerializer
 
 User = get_user_model()
 
  
 class EvaluationSerializer(serializers.ModelSerializer):
-
+    
     #--WRITE-ONLY--
 
     employee_id = serializers.PrimaryKeyRelatedField(
@@ -52,6 +53,8 @@ class EvaluationSerializer(serializers.ModelSerializer):
 
     objectives_score = serializers.SerializerMethodField(read_only=True)
     competencies_score = serializers.SerializerMethodField(read_only=True) 
+    
+    activity_log = ActivityLogSerializer(source="activity_logs", many=True, read_only=True)
     class Meta:
         model = Evaluation
         fields = [
@@ -63,6 +66,7 @@ class EvaluationSerializer(serializers.ModelSerializer):
             "created_at", "updated_at",
             "objectives_score",
             "competencies_score",
+            "activity_log",
             "objectives",
             "competencies"
         ]

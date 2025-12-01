@@ -6,6 +6,7 @@ from evaluation_app.views.auth import EmailLoginView
 from evaluation_app.views.objectiveViewSet import ObjectiveViewSet
 from evaluation_app.views.competencyViewSet import CompetencyViewSet
 from evaluation_app.views.weightsConfigurationViewSet import WeightConfigViewSet
+from evaluation_app.views.activity_log_viewset import ActivityLogViewSet
 
 
 from django.urls import path
@@ -26,7 +27,7 @@ router.register("objectives", ObjectiveViewSet, basename="objectives") #GET /api
 router.register("competencies", CompetencyViewSet, basename="competency") #GET /api/competencies/
 #GET /api/weights-configuration/ & GET /api/weights-configuration/{level_name}/
 router.register("weights-configuration", WeightConfigViewSet, basename="weights-configuration") 
-
+router.register(r'activity-log', ActivityLogViewSet, basename='activity-log')
 
 urlpatterns = [
     # JWT
