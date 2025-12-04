@@ -6,7 +6,7 @@ from evaluation_app.models import (
 )
 from evaluation_app.services.objective_math import recalculate_objective_weights
 from evaluation_app.services.competency_math import recalculate_competency_weights
-from evaluation_app.services.evaluation_math import calculate_evaluation_score
+from evaluation_app.services.evaluation_math import (calculate_evaluation_score)
 import json
 
 
@@ -85,13 +85,17 @@ def _objective_saved(sender, instance:Objective, created,update_fields=None ,**k
 @receiver(post_delete,sender=Objective)
 def _objective_deleted(sender, instance:Objective, **kwargs):
     recalculate_objective_weights(instance.evaluation)
-    calculate_evaluation_score(instance.evaluation, persist=True)
+    calculate_evaluation_score(instance.evaluation)
 
 
 #-------------------------------------------
 # Resplit weights whenever competencies changed (create, update, delete)
 @receiver(post_save, sender=Competency)
-def _competency_saved(sender, instance: Competency, **kwargs):
+def _competency_saved(sender, instance: Competency, created, update_fields=None, **kwargs):
+    if update_fields:
+        uf = set(update_fields)
+        if uf.issubset({"weight","updated_at"}):
+            return
     recalculate_competency_weights(instance.evaluation)
     calculate_evaluation_score(instance.evaluation, persist=True)
     

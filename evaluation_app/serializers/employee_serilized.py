@@ -214,9 +214,6 @@ class EmployeeSerializer(serializers.ModelSerializer):
             ),
         }'''
 
-    
-    
-
     '''def get_org_path(self, obj):
         """Optimized org path calculation"""
         p = self._latest_placement(obj)
@@ -264,14 +261,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
         elif isinstance(user_payload, dict):
             # Case 2: create a new User
-            password = user_payload.pop("password", None)
-            user = User.objects.create_user(
-                username = user_payload["username"],
-                email    = user_payload.get("email", ""),
-                password = password,
-                **{k: v for k, v in user_payload.items()
-                   if k not in ("username", "email")}
-            )
+            user_serializer = UserCreateSerializer(data=user_payload)
+            user_serializer.is_valid(raise_exception=True)
+            user = user_serializer.save()  
+            
 
         else:
             raise serializers.ValidationError(

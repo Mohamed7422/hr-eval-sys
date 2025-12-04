@@ -8,6 +8,11 @@ from evaluation_app.models import Objective, EmployeePlacement, EvalStatus
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
 from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, CanTouchObjOrComp 
 from django.db.models import Q 
+import time
+import logging
+from django.conf import settings
+from django.db import reset_queries
+logger =  logging.getLogger(__name__)
 class ObjectiveViewSet(viewsets.ModelViewSet):
     queryset         = Objective.objects.select_related("evaluation__employee")
     serializer_class = ObjectiveSerializer
@@ -82,14 +87,24 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
 
 
     def create(self, request, *args, **kwargs):
+        print(f" DEBUG = {settings.DEBUG}")
+        reset_queries() 
+        start = time.time()
         ser = self.get_serializer(data=request.data)
+        validation_time = time.time()
         ser.is_valid(raise_exception=True)
+        print(f"⏱️ Validation: {time.time() - validation_time:.3f}s")
+
         
         checkCreateObjectivesForSelfEvaluation(self, request, ser)
 
 
         obj =ser.save() #triggers objective post_save signal to recalculate weights
         #pull in bulk update changes done by the signal
+        elapsed = time.time() - start 
+        logger.info(f"⏱️ Objective created in {elapsed:.3f}s")
+        print(f"⏱️ Objective created in {elapsed:.3f}s")  # Also print to console
+    
         obj.refresh_from_db(fields=["weight","updated_at"])
         data = self.get_serializer(obj).data
         headers = self.get_success_headers(data)

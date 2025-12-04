@@ -1,5 +1,5 @@
 
-from evaluation_app.models import Evaluation, Objective, WeightsConfiguration
+from evaluation_app.models import Evaluation, Objective
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.utils import timezone
@@ -76,8 +76,13 @@ def calculate_objectives_score(
         - if return_breakdown=True: (subtotal_pct, objective_weight_pct, weighted_score)
     """
     subtotal = Decimal("0")
+    
+    # first optimization: only fetch fields we need for calculation
+    objectives = evaluation.objective_set.only(
+        "objective_id", "target", "achieved", "weight"
+    ).all()
 
-    for obj in evaluation.objective_set.all():
+    for obj in objectives:
         
         try:
           logging.info(f"Calculating score for objective {obj.objective_id}")
@@ -85,8 +90,10 @@ def calculate_objectives_score(
           target = _d(float(obj.target)) if obj.target else Decimal("0")
           if target <= 0:
               continue
+          
           achieved = _d(float(obj.achieved)) if obj.achieved else Decimal("0")
           ratio = achieved / target
+
           if cap_at_100:# clamp to [0, 1]
               if ratio < 0:
                   ratio = Decimal("0")
@@ -101,12 +108,8 @@ def calculate_objectives_score(
     subtotal = subtotal.quantize(CENT)  # e.g., 72.50 (% points)
 
     # Pull the managerial-level objective weight (e.g., IC might have 60%)
-    obj_weight_percent = Decimal("0")
-    try:
-       # ml_weights = WeightsConfiguration.objects.get(level_name=evaluation.employee.managerial_level)
-        obj_weight_percent = _d(evaluation.obj_weight_pct or 0)
-    except WeightsConfiguration.DoesNotExist:
-        obj_weight_percent = Decimal("0")
+    # Get the objective weight percentage from evaluation snapshot
+    obj_weight_percent = _d(evaluation.obj_weight_pct or 0)
 
     weighted = ((subtotal / Decimal("100")) * obj_weight_percent).quantize(CENT)
    
