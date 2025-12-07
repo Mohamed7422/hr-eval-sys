@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from evaluation_app.utils import LabelChoiceField
 from django.utils  import timezone
 
-DEFAULT_PASSWORD = "defaultpassword123"
+DEFAULT_PASSWORD = "Password123"
 
 User = get_user_model()
 
