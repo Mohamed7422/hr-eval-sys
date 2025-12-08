@@ -25,7 +25,7 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         role   = self.request.user.role
         action = self.action
-
+        
         # ─── LIST / RETRIEVE ───────────────────────────────
         if action in ("list", "retrieve"):
             if role in ("ADMIN", "HR"):
@@ -51,6 +51,9 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
         if action == "destroy":
             if role in ("ADMIN", "HR"):
                 return [(IsAdmin|IsHR)()]
+            
+            if role in ("HOD", "LM"):
+                return [(IsHOD|IsLineManager)()]
             
             if role == "EMP":
                 return [CanTouchObjOrComp()]
@@ -128,6 +131,20 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request,  *args, **kwargs):
         instance = self.get_object()
+        user = request.user
+        if user.role in ("HOD", "LM"):
+            manages = EmployeePlacement.objects.filter(
+                Q(department__manager=user) |
+                Q(sub_department__manager=user) |
+                Q(section__manager=user) |
+                Q(sub_section__manager=user),
+                employee=instance.evaluation.employee
+            ).exists()
+            if not manages:
+                self.permission_denied(
+                    request,
+                    message="You cannot delete this objective."
+                )
         self.perform_destroy(instance)
         return Response(
             {

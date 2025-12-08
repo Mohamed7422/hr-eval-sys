@@ -1,7 +1,7 @@
 from evaluation_app.serializers.org_serializers import(
     CompanySerializer, DepartmentSerializer, SubDepartmentSerializer, SectionSerializer, SubSectionSerializer, EmployeePlacementSerializer
 )
-from evaluation_app.permissions import IsAdmin, IsHR, IsHOD, IsLineManager, IsSelfOrAdminHR, ReadOnlyOrAdminHR,IsAdminOrHR
+from evaluation_app.permissions import ReadOnlyOrAdminHR,IsAdminOrHR
 from evaluation_app.models import Employee, Company, Department, SubDepartment, Section, SubSection, EmployeePlacement, CompanySize
 from rest_framework import viewsets, filters, permissions, status
 from rest_framework.permissions import IsAuthenticated
@@ -18,7 +18,7 @@ try:
     import openpyxl
 except ImportError:
     openpyxl = None 
-    
+from .base import ReadOnlyAuthFullAdminHRMixin    
 from django_filters.rest_framework import DjangoFilterBackend
 from evaluation_app.services.hierarchy_importer import parse_hierarchy_rows, import_hierarchy_paths
 
@@ -220,13 +220,16 @@ class CompanyViewSet(viewsets.ModelViewSet):
         return Response(result, status=http_status)
 
 
-class DepartmentViewSet(viewsets.ModelViewSet):
+class DepartmentViewSet(ReadOnlyAuthFullAdminHRMixin,viewsets.ModelViewSet):
     queryset = Department.objects.select_related("company", "manager")
     serializer_class = DepartmentSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, JSONParser, FormParser]
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    manager_lookips = [
+        "manager"
+    ]
     filterset_fields = {
         "company": ["exact"],
         "company_id": ["exact"],
@@ -257,7 +260,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
  
-    def get_queryset(self):
+    ''' def get_queryset(self):
         qs =  super().get_queryset()
         u = self.request.user
         if u.role in ("Admin", "HR", "ADMIN"):
@@ -266,17 +269,22 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             return qs.filter(manager=u)
         return qs.none() # regular employees cannot access departments
     
-    def get_permissions(self):
+   def get_permissions(self):
         if self.action in ("list","retrieve"):
             return [IsAuthenticated()] # read-only for all authenticated users
         return [(IsAdmin | IsHR)()]  # write permissions for Admin & HR only
-
+'''
 # ──────────────────────────────────────────────────────────────────────────────
 
-class SubDepartmentViewSet(viewsets.ModelViewSet):
+class SubDepartmentViewSet(ReadOnlyAuthFullAdminHRMixin, viewsets.ModelViewSet):
     queryset = SubDepartment.objects.select_related("department", "manager")
     serializer_class = SubDepartmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends  = [DjangoFilterBackend,filters.SearchFilter]
+    manager_lookups = [
+        "manager",
+        "department__manager",
+    ]
     filterset_fields = {
         "department": ["exact"],
         "department_id": ["exact"],
@@ -284,17 +292,17 @@ class SubDepartmentViewSet(viewsets.ModelViewSet):
         "department__company_id": ["exact"],
     }
     search_fields   = ["name", "department__name"]
-
-    def get_permissions(self):
-        # read-only for authenticated users, full access for Admin/HR
-        if self.action in ("create", "update", "partial_update", "destroy"):
-            return [ReadOnlyOrAdminHR()]
-        return [IsAuthenticated()]
-
-class SectionViewSet(viewsets.ModelViewSet):
+ 
+class SectionViewSet(ReadOnlyAuthFullAdminHRMixin, viewsets.ModelViewSet):
     queryset = Section.objects.select_related("sub_department","manager")
     serializer_class = SectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    manager_lookups = [
+        "manager",
+        "sub_department__manager",
+        "sub_department__department__manager"
+    ]
     filterset_fields = {
         "sub_department": ["exact"],                          # ?sub_department=<uuid>
         "sub_department_id": ["exact"],                       # ?sub_department_id=<uuid>
@@ -304,16 +312,19 @@ class SectionViewSet(viewsets.ModelViewSet):
         "sub_department__department__company_id": ["exact"],  # ?sub_department__department__company_id=<uuid>
     }
     search_fields = ["name", "sub_department__name"]
+ 
 
-    def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "destroy"):
-            return [ReadOnlyOrAdminHR()]
-        return [IsAuthenticated()]
-
-class SubSectionViewSet(viewsets.ModelViewSet):
+class SubSectionViewSet(ReadOnlyAuthFullAdminHRMixin, viewsets.ModelViewSet):
     queryset = SubSection.objects.select_related("section","manager")
     serializer_class = SubSectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend,filters.SearchFilter]
+    manager_lookups = [
+        "manager",
+        "section__manager",
+        "section__sub_department__manager",
+        "section__sub_department__department__manager"
+    ]
     filterset_fields = {
         "section": ["exact"],                                      # ?section=<uuid>
         "section_id": ["exact"],                                   # ?section_id=<uuid>
@@ -323,12 +334,9 @@ class SubSectionViewSet(viewsets.ModelViewSet):
         "section__sub_department__department_id": ["exact"],       # ?section__sub_department__department_id=<uuid>
         "section__sub_department__department__company_id": ["exact"],  # ?section__sub_department__department__company_id=<uuid>
     }
-    search_fields = ["name","section__name"]
 
-    def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "destroy"):
-            return [ReadOnlyOrAdminHR()]
-        return [IsAuthenticated()]
+    search_fields = ["name","section__name"]
+  
 
 class EmployeePlacementViewSet(viewsets.ModelViewSet):
     queryset = EmployeePlacement.objects.select_related(

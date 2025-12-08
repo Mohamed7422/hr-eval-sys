@@ -24,11 +24,18 @@ from evaluation_app.utils import LabelChoiceField
 class EvaluationFilter(django_filters.FilterSet):
     employee_id = django_filters.UUIDFilter(field_name="employee__employee_id")
     user_id = django_filters.UUIDFilter(field_name="employee__user__user_id")
-
+    status = django_filters.CharFilter(method="filter_status")
     class Meta:
         model = Evaluation
-        fields = ["employee", "employee_id" , "user_id"]  # both work
-
+        fields = ["employee", "employee_id" , "user_id", "status" ]  # both work
+    def filter_status(self, queryset, name, value):
+        from evaluation_app.utils import LabelChoiceField
+        field = LabelChoiceField(choices=EvalStatus.choices, required=False)
+        try:
+            status_value = field.to_internal_value(value)
+        except Exception:
+            return queryset.none()  # or return queryset to ignore invalid input
+        return queryset.filter(status=status_value)
 class EvaluationViewSet(viewsets.ModelViewSet):
     """
     Permissions

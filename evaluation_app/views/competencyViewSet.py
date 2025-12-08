@@ -54,6 +54,9 @@ class CompetencyViewSet(viewsets.ModelViewSet):
         if action == "destroy":
             if role in ("ADMIN", "HR"):
                 return [(IsAdmin|IsHR)()]
+            
+            if role in ("HOD", "LM"):
+                return [(IsHOD|IsLineManager)()]
 
             if role == "EMP":
                 return [CanTouchObjOrComp()]
@@ -128,6 +131,20 @@ class CompetencyViewSet(viewsets.ModelViewSet):
  
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        user = request.user
+        if user.role in ("HOD", "LM"):
+            manages = EmployeePlacement.objects.filter(
+                Q(department__manager=user) |
+                Q(sub_department__manager=user) |
+                Q(section__manager=user) |
+                Q(sub_section__manager=user),
+                employee=instance.evaluation.employee
+            ).exists()
+            if not manages:
+                self.permission_denied(
+                    request,
+                    message="You cannot delete this competency."
+                )
         self.perform_destroy(instance)
         return Response(
             {"message": "Competency deleted successfully."},
