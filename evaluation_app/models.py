@@ -16,6 +16,7 @@ class ManagerialLevel(models.TextChoices):
     IC          = "IC",          "Individual Contributor"
     SUPERVISORY = "SUPERVISORY", "Supervisory"
     MIDDLE      = "MIDDLE",      "Middle Management"
+    EXECUTIVE   = "EXECUTIVE",    "Executive"
 
 class EmpStatus(models.TextChoices):
     ACTIVE   = "ACTIVE",   "Active"

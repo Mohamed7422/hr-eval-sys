@@ -1,9 +1,8 @@
 
 from evaluation_app.models import Evaluation, Objective
 from decimal import Decimal, ROUND_HALF_UP
-from django.db import transaction
-from django.utils import timezone
 import logging 
+from django.core.exceptions import ValidationError  
 
 def _d(x) -> Decimal:
     return Decimal(str(x))
@@ -14,6 +13,58 @@ def _round2(x: float | Decimal) -> float:
 TOTAL_WEIGHT = Decimal('100.00')
 CENT = Decimal('0.01')
  
+def validate_objectives_constraints(evaluation:Evaluation) -> None:
+    """
+    Validate that objectives meet all constraints:
+    - Count must be 4-6
+    - Each weight must be 10-40%
+    - Total weights must sum to 100%
+    
+    Raises:
+        ValidationError: If any constraint is violated
+    """
+    objectives = list(evaluation.objective_set.all())
+    count = len(objectives)
+
+    if count < 4:
+        raise ValidationError(
+            f"Must have at least 4 objectives (currently: {count})"
+        )
+    if count > 6:
+        raise ValidationError(
+            f"Cannot have more than 6 objectives (currently: {count})"
+        )
+    
+    #Check individual weights (10% - 40%)
+    for obj in objectives:
+        weight = float(obj.weight or 0.0)
+        if weight < 10:
+            raise ValidationError(
+                f"Objective '{obj.title}' weight must be at least 10% (currently: {weight}%)"
+            )
+        if weight > 40:
+            raise ValidationError(
+                f"Objective '{obj.title}' weight cannot exceed 40% (currently: {weight}%)"
+            )
+        
+    total_weight = sum(float(obj.weight or 0.0) for obj in objectives)    
+    if abs(total_weight - 100) > 0.01:
+        raise ValidationError(
+            f"Objective weights must sum to 100% (currently: {total_weight:.2f}%)"
+        )
+
+def validate_single_objective_weight(weight: float) -> None:
+
+    if weight < 10:
+        raise ValidationError(
+            f"Objective weight must be at least 10% (provided: {weight}%)"
+        )
+    if weight > 40:
+        raise ValidationError(
+            f"Objective weight cannot exceed 40% (provided: {weight}%)"
+        )
+
+'''
 def recalculate_objective_weights(evaluation:Evaluation) -> None:
     """
     Distribute weights equally among all objectives of the evaluation,
@@ -58,7 +109,7 @@ def recalculate_objective_weights(evaluation:Evaluation) -> None:
             Objective.objects.filter(pk__in=[o.pk for o in changed]).update(updated_at=timezone.now())
             
      # ---------------------------------------------------------------#
-
+'''
 def calculate_objectives_score(
     evaluation: Evaluation,
     *,
@@ -77,7 +128,7 @@ def calculate_objectives_score(
     """
     subtotal = Decimal("0")
     
-    # first optimization: only fetch fields we need for calculation
+     
     objectives = evaluation.objective_set.only(
         "objective_id", "target", "achieved", "weight"
     ).all()
@@ -99,13 +150,13 @@ def calculate_objectives_score(
                   ratio = Decimal("0")
               if ratio > 1:
                   ratio = Decimal("1")
-          weight_percent = _d(obj.weight) if obj.weight is not None else Decimal("0")  # each objective’s % share (sums to 100)
+          weight_percent = _d(obj.weight) if obj.weight is not None else Decimal("0")   
           subtotal += ratio * weight_percent
         except Exception as e:  
           logging.error(f"Error calculating score for objective {obj.objective_id}: {e}")
           continue  
 
-    subtotal = subtotal.quantize(CENT)  # e.g., 72.50 (% points)
+    subtotal = subtotal.quantize(CENT)  # ex: 72.50 (% points)
 
     # Pull the managerial-level objective weight (e.g., IC might have 60%)
     # Get the objective weight percentage from evaluation snapshot
@@ -116,6 +167,43 @@ def calculate_objectives_score(
     if return_breakdown:
         return _round2(subtotal), _round2(obj_weight_percent), _round2(weighted)
     return _round2(weighted)
+
+def sum_objectives_score(evaluation: Evaluation, *, cap_at_100: bool = True):
+     
+    subtotal = Decimal("0")
+    
+    # first optimization: only fetch fields we need for calculation
+    objectives = evaluation.objective_set.only(
+        "objective_id", "target", "achieved", "weight"
+    ).all()
+
+     
+    for obj in objectives:
+        
+        try:
+          logging.info(f"Calculating score for objective {obj.objective_id}")
+           
+          target = _d(float(obj.target)) if obj.target else Decimal("0")
+          if target <= 0:
+              continue
+          
+          achieved = _d(float(obj.achieved)) if obj.achieved else Decimal("0")
+          ratio = achieved / target
+
+          if cap_at_100:# clamp to [0, 1]
+              if ratio < 0:
+                  ratio = Decimal("0")
+              if ratio > 1:
+                  ratio = Decimal("1")
+          weight_percent = _d(obj.weight) if obj.weight is not None else Decimal("0")  
+          subtotal += ratio * weight_percent
+        except Exception as e:  
+          logging.error(f"Error calculating score for objective {obj.objective_id}: {e}")
+          continue  
+
+    subtotal = subtotal.quantize(CENT)  # ex: 72.50 (% points)
+
+    return _round2(subtotal)
 
 def compute_objective_score(obj: Objective, *, cap_at_100: bool = True) -> float:
     """

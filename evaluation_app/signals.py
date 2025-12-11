@@ -4,8 +4,6 @@ from django.db.models import F
 from evaluation_app.models import (
     Employee, EmployeePlacement, Department, SubDepartment, Section, SubSection, Objective, Competency
 )
-from evaluation_app.services.objective_math import recalculate_objective_weights
-from evaluation_app.services.competency_math import recalculate_competency_weights
 from evaluation_app.services.evaluation_math import (calculate_evaluation_score)
 import json
 
@@ -79,12 +77,12 @@ def _objective_saved(sender, instance:Objective, created,update_fields=None ,**k
         uf = set(update_fields)
         if uf.issubset({"weight","updated_at"}):
             return
-    recalculate_objective_weights(instance.evaluation)
+    
     calculate_evaluation_score(instance.evaluation, persist=True)
 
 @receiver(post_delete,sender=Objective)
 def _objective_deleted(sender, instance:Objective, **kwargs):
-    recalculate_objective_weights(instance.evaluation)
+     
     calculate_evaluation_score(instance.evaluation)
 
 
@@ -96,12 +94,12 @@ def _competency_saved(sender, instance: Competency, created, update_fields=None,
         uf = set(update_fields)
         if uf.issubset({"weight","updated_at"}):
             return
-    recalculate_competency_weights(instance.evaluation)
+     
     calculate_evaluation_score(instance.evaluation, persist=True)
     
 @receiver(post_delete, sender=Competency)
 def _competency_deleted(sender, instance: Competency, **kwargs):
-    recalculate_competency_weights(instance.evaluation)
+    
     calculate_evaluation_score(instance.evaluation, persist=True)
 
 #-------------------------------------------

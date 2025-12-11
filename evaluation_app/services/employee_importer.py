@@ -14,7 +14,6 @@ except ImportError:
 
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from django.db.models import Q
 from evaluation_app.serializers.employee_serilized import EmployeeSerializer  # local import to avoid cycles
 
 from evaluation_app.models import (
@@ -22,7 +21,7 @@ from evaluation_app.models import (
     # enums below must exist in your project
     ManagerialLevel, EmpStatus, JobType, BranchType  # adjust import
 )
-from accounts.models import User, Role, Gender  # adjust import
+from accounts.models import User, Gender  # adjust import
 
 User = get_user_model()
 
@@ -291,6 +290,8 @@ MANAGERIAL_ALIASES = {
     "supervisory": ManagerialLevel.SUPERVISORY,
     "middle": ManagerialLevel.MIDDLE,
     "middle management": ManagerialLevel.MIDDLE,
+    "executive": ManagerialLevel.EXECUTIVE,
+    "executive management": ManagerialLevel.EXECUTIVE,
 }
 
 BRANCH_ALIASES = {
