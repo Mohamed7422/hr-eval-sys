@@ -83,7 +83,7 @@ def _objective_saved(sender, instance:Objective, created,update_fields=None ,**k
 @receiver(post_delete,sender=Objective)
 def _objective_deleted(sender, instance:Objective, **kwargs):
      
-    calculate_evaluation_score(instance.evaluation)
+    calculate_evaluation_score(instance.evaluation, persist=True)
 
 
 #-------------------------------------------

@@ -27,9 +27,9 @@ class EvaluationFilter(django_filters.FilterSet):
     status = django_filters.CharFilter(method="filter_status")
     class Meta:
         model = Evaluation
-        fields = ["employee", "employee_id" , "user_id", "status" ]  # both work
+        fields = ["employee", "employee_id" , "user_id", "status" ] 
     def filter_status(self, queryset, name, value):
-        from evaluation_app.utils import LabelChoiceField
+        
         field = LabelChoiceField(choices=EvalStatus.choices, required=False)
         try:
             status_value = field.to_internal_value(value)
@@ -98,6 +98,7 @@ class EvaluationViewSet(viewsets.ModelViewSet):
               ) 
         user = self.request.user
         
+         
         if self.action == "self_evaluate":
             qs = qs.filter(status=EvalStatus.SELF_EVAL)
         elif self.action in ("destroy", "update", "partial_update"): 

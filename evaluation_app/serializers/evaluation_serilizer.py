@@ -7,9 +7,6 @@ from evaluation_app.models import Employee
 from evaluation_app.utils import LabelChoiceField
 from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
 from evaluation_app.serializers.competency_serializer import CompetencySerializer
-from evaluation_app.services.objective_math import sum_objectives_score
-from evaluation_app.services.competency_math import sum_competencies_score
-from evaluation_app.services.evaluation_math import calculate_evaluation_score
 from evaluation_app.models import WeightsConfiguration
 from evaluation_app.serializers.activity_log import ActivityLogSerializer
 
@@ -46,13 +43,13 @@ class EvaluationSerializer(serializers.ModelSerializer):
     type         = LabelChoiceField(choices=EvalType.choices)
     status       = LabelChoiceField(choices=EvalStatus.choices)
     score        = serializers.DecimalField(max_digits=4, decimal_places=2, 
-                                            allow_null=True, required=False)
+                                            allow_null=True, required=False , read_only=True)
     
     created_at   = serializers.DateTimeField(read_only=True)
     updated_at   = serializers.DateTimeField(read_only=True)
 
-    objectives_score = serializers.SerializerMethodField(read_only=True)
-    competencies_score = serializers.SerializerMethodField(read_only=True) 
+    objectives_score = serializers.FloatField(read_only=True)
+    competencies_score = serializers.FloatField(read_only=True) 
     
     activity_log = ActivityLogSerializer(source="activity_logs", many=True, read_only=True)
     class Meta:
@@ -104,7 +101,7 @@ class EvaluationSerializer(serializers.ModelSerializer):
             validated_data.pop("reviewer", None)
         return super().update(instance, validated_data)
     
-    def get_objectives_score(self, obj): # Note that obj means the evaluation instance.
+    '''def get_objectives_score(self, obj): # Note that obj means the evaluation instance.
         return sum_objectives_score(obj, cap_at_100=True)
     
     def get_competencies_score(self, obj):
@@ -115,4 +112,4 @@ class EvaluationSerializer(serializers.ModelSerializer):
         data["objectives_score"] = sum_objectives_score(instance, cap_at_100=True)
         data["competencies_score"] = sum_competencies_score(instance, cap_at_100=True)
         data["score"] = calculate_evaluation_score(instance, cap_at_100=True)
-        return data
+        return data '''
