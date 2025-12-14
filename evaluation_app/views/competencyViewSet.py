@@ -186,6 +186,7 @@ class CompetencyViewSet(viewsets.ModelViewSet):
                     request,
                     message="You cannot delete this competency."
                 )
+        evaluation = instance.evaluation        
         self.perform_destroy(instance)
         try:
             validate_competencies_constraints(evaluation)

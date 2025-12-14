@@ -31,8 +31,7 @@ def calculate_evaluation_score(
     
     if persist:
         Evaluation.objects.filter(pk=evaluation.pk).update(
-            objectives_score=objectives_score,
-            competencies_score=competencies_score,
+          
             score=float(evaluation_score)
         )
         evaluation.score = float(evaluation_score)

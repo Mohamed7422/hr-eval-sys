@@ -161,6 +161,7 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
                     request,
                     message="You cannot delete this objective."
                 )
+        evaluation = instance.evaluation        
         self.perform_destroy(instance)
         # Validate constraints after deletion
         try:
