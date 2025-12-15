@@ -120,7 +120,7 @@ class CompetencyViewSet(viewsets.ModelViewSet):
         warnings = []
         try:
             validate_competencies_constraints(comp.evaluation)
-        except ValidationError as e:
+        except DjangoValidationError as e:
             constraints_met = False
             warnings.append(str(e))
         

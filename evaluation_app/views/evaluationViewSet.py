@@ -46,7 +46,7 @@ class EvaluationViewSet(viewsets.ModelViewSet):
     • Employee        → read-only access to own evaluations.  
     """
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    permission_classes = [IsAuthenticated]  #default fallback
+    permission_classes = [IsAuthenticated]
     serializer_class = EvaluationSerializer
    
     filterset_class = EvaluationFilter
