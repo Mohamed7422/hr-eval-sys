@@ -73,7 +73,7 @@ class ActivityAction(models.TextChoices):
 class Company(models.Model):
     company_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name       = models.CharField(max_length=180)
-    address    = models.TextField()
+    address    = models.TextField(blank=True, default='')
     industry   = models.CharField(max_length=100)
     size       = models.CharField(max_length=6, choices=CompanySize.choices)
     created_at = models.DateTimeField(default=timezone.now)

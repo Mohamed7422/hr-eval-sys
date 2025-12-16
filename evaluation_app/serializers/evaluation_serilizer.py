@@ -101,15 +101,3 @@ class EvaluationSerializer(serializers.ModelSerializer):
             validated_data.pop("reviewer", None)
         return super().update(instance, validated_data)
     
-    '''def get_objectives_score(self, obj): # Note that obj means the evaluation instance.
-        return sum_objectives_score(obj, cap_at_100=True)
-    
-    def get_competencies_score(self, obj):
-        return sum_competencies_score(obj, cap_at_100=True)    
-    
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data["objectives_score"] = sum_objectives_score(instance, cap_at_100=True)
-        data["competencies_score"] = sum_competencies_score(instance, cap_at_100=True)
-        data["score"] = calculate_evaluation_score(instance, cap_at_100=True)
-        return data '''
