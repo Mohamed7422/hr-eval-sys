@@ -1,10 +1,10 @@
 from rest_framework import viewsets, filters, status, permissions
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, Count
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from evaluation_app.models import Employee,EmployeePlacement
+from evaluation_app.models import Employee,EmployeePlacement,Evaluation,EvalStatus
 from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR, IsAdminOrHR
 from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
@@ -100,17 +100,47 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             )
             .order_by('-assigned_at')
         )
-
+       
         # Base queryset with essential relations
+        params = getattr(self.request, "query_params", {})
+        user_filter = params.get("user_id") or params.get("employee_id")
+        
+        # Only prefetch evaluations when retrieving specific employee(s)
+        include_evaluations = (self.action != "list") or bool(user_filter)
+
+        prefetches = [
+            Prefetch(
+                "employee_placements",
+                queryset=latest_placements,
+                to_attr="placements_cache"
+            ),
+        ]
+        # Prefetch all evaluations for pending calculation
+        if include_evaluations:
+            all_evals_qs = (
+                Evaluation.objects
+                .exclude(status=EvalStatus.SELF_EVAL)
+                .only('evaluation_id', 'period', 'status')
+                .order_by('period')
+            )
+            prefetches.append(
+                Prefetch(
+                    "evaluations",
+                    queryset=all_evals_qs,
+                    to_attr="all_evaluations_cache"
+                )
+            )
+        
         qs = (Employee.objects
             .select_related('user', 'company')
-            .prefetch_related(
-                Prefetch(
-                    "employee_placements",
-                    queryset=latest_placements,
-                    to_attr="placements_cache"
+            .prefetch_related(*prefetches)
+            .annotate(
+                pending_evaluations_count=Count(
+                    "evaluations", 
+                    filter=Q(evaluations__status=EvalStatus.DRAFT)
                 )
-            ))
+            )
+        )
 
         user = self.request.user
 

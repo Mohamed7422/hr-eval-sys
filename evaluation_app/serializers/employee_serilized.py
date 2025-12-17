@@ -2,11 +2,11 @@
 
 from rest_framework import serializers
 from evaluation_app.models import (Employee, Department, Company, ManagerialLevel, EmpStatus, JobType
-                                   , BranchType, EmployeePlacement)
+                                   , BranchType, EmployeePlacement, EvalStatus)
 from accounts.models import User
 from accounts.serializers.user_serializer import UserCreateSerializer
 from evaluation_app.utils import LabelChoiceField
- 
+from datetime import datetime  
  
 class EmployeeSerializer(serializers.ModelSerializer):
     # READ: show full user data
@@ -87,7 +87,11 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     org_path = serializers.CharField(source="dept_path", read_only=True)
     direct_manager = serializers.CharField(source="direct_manager_name", read_only=True)
-    
+
+    # NEW: pending evaluations (Drafts only)
+    pending_evaluations = serializers.SerializerMethodField(read_only=True)
+    pending_evaluations_count = serializers.SerializerMethodField(read_only=True)
+
 
     class Meta:
         model  = Employee
@@ -112,6 +116,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "department_id", 
             "job_type","location","branch",
             "gender",
+
+            # pending evaluations
+            "pending_evaluations",
+            "pending_evaluations_count",
             
         ]
         read_only_fields = ("employee_id",)
@@ -190,9 +198,112 @@ class EmployeeSerializer(serializers.ModelSerializer):
         # 3) let DRF handle the rest (company_id, phone, avatar, managerial_level, status…)
         return super().update(instance, validated_data)
 
+    def get_pending_evaluations(self, obj):
+        """
+        Return periods that have ANY DRAFT evaluations for THIS employee.
+        Count shows only the number of DRAFT evaluations in each period.
+        """
+        req = self.context.get("request")
+        view = self.context.get("view")
+
+        # For global lists, skip this computation
+        if req and view and getattr(view, "action", None) == "list":
+            params = req.query_params
+            if not (params.get("employee_id") or params.get("user_id")):
+                return []
+        
+        # Get all evaluations for this employee (use prefetched if available)
+        all_evals = getattr(obj, 'all_evaluations_cache', None)
+        if all_evals is None:
+            all_evals = obj.evaluations.exclude(status=EvalStatus.SELF_EVAL)
+        
+        # Group evaluations by period
+        evals_by_period = {}
+        employee_periods = set()
+
+        for eval_obj in all_evals:
+            period = (eval_obj.period or "").strip()
+            
+            # Only include periods in YYYY-Mid or YYYY-End format
+            if period.endswith("-Mid") or period.endswith("-End"):
+                employee_periods.add(period)
+                evals_by_period.setdefault(period, []).append(eval_obj)
+        
+        # ALWAYS add current year periods (for employees who might not have evaluations yet)
+        current_year = datetime.now().year
+        employee_periods.add(f"{current_year}-Mid")
+        employee_periods.add(f"{current_year}-End")
+
+        # Sort periods CORRECTLY (chronologically: year first, then Mid before End)
+        def sort_period_key(period):
+            """
+            Sort key: (year, 0 for Mid / 1 for End)
+            """
+            try:
+                parts = period.split('-')
+                year = int(parts[0])
+                period_type = parts[1]
+                # Mid=0, End=1 so Mid comes before End
+                type_order = 0 if period_type == "Mid" else 1
+                return (year, type_order)
+            except (IndexError, ValueError):
+                return (9999, 9)
+        
+        sorted_periods = sorted(employee_periods, key=sort_period_key)
+        
+        # Build result - Include periods with ANY DRAFT evaluations OR no evaluations
+        pending_periods = []
+
+        for period in sorted_periods:
+            period_evals = evals_by_period.get(period, [])
+            
+            if not period_evals:
+                # No evaluation for this period = PENDING
+                pending_periods.append({
+                    "period": period,
+                    "count": 0,
+                    "has_pending": True
+                })
+            else:
+                # Count ONLY the DRAFT evaluations in this period
+                draft_count = sum(1 for e in period_evals if e.status == EvalStatus.DRAFT)
+                
+                if draft_count > 0:
+                    # Has at least one DRAFT = PENDING
+                    pending_periods.append({
+                        "period": period,
+                        "count": draft_count,
+                        "has_pending": True
+                    })
+                # If draft_count == 0, all evaluations are completed, don't include
+        
+        return pending_periods
+        
+
+    def get_pending_evaluations_count(self, obj):
+        cnt = getattr(obj, "pending_evaluations_count", None)
+        if cnt is not None:
+            return cnt
+        drafts = getattr(obj, "pending_evals", None)
+        if drafts is not None:
+            return len(drafts)
+        return obj.evaluations.filter(status=EvalStatus.DRAFT).count()
 
 
-
+    def to_representation(self, instance):
+        """
+        Omit the pending_evaluations key entirely for global employee lists
+        (no employee_id/user_id filter). Keep the count always.
+        """
+        rep = super().to_representation(instance)
+        req = self.context.get("request")
+        view = self.context.get("view")
+        if req and view and getattr(view, "action", None) == "list":
+            params = req.query_params
+            if not (params.get("employee_id") or params.get("user_id")):
+                # hide the empty list from global list responses
+                rep.pop("pending_evaluations", None)
+        return rep
 
     # no need to override create() at all—
     # DRF will now do:

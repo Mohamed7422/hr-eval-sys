@@ -92,10 +92,16 @@ class EvaluationViewSet(viewsets.ModelViewSet):
     # ---- queryset filtered by role ---------------------------
     
     def get_queryset(self):
-        qs = (Evaluation.objects
-              .select_related("employee__user","reviewer")
-              .prefetch_related("objective_set", "competency_set")
-              ) 
+        base_qs = Evaluation.objects.select_related("employee__user","reviewer")
+        params = getattr(self.request, "query_params", {})
+        user_filter = params.get("user_id") or params.get("employee_id")
+
+        # For global list (no user/employee filter) avoid prefetching heavy relations
+        if self.action == "list" and not user_filter:
+            qs = base_qs
+        else:
+            qs = base_qs.prefetch_related("objective_set", "competency_set")
+
         user = self.request.user
         
          
@@ -118,6 +124,14 @@ class EvaluationViewSet(viewsets.ModelViewSet):
                 )
             ).distinct()
         return qs.filter(employee__user=user)
+    
+    def get_serializer_class(self):
+        if self.action == "list":
+            params = getattr(self.request, "query_params", {})
+            if not (params.get("user_id") or params.get("employee_id")):
+                from evaluation_app.serializers.evaluation_serilizer import EvaluationListSerializer
+                return EvaluationListSerializer
+        return EvaluationSerializer
     # ----------------------------------------------------------
 
      

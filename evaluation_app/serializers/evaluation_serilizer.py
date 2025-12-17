@@ -42,7 +42,7 @@ class EvaluationSerializer(serializers.ModelSerializer):
     competencies = CompetencySerializer(source="competency_set",many=True, read_only=True)
     type         = LabelChoiceField(choices=EvalType.choices)
     status       = LabelChoiceField(choices=EvalStatus.choices)
-    score        = serializers.DecimalField(max_digits=4, decimal_places=2, 
+    score        = serializers.DecimalField(max_digits=5, decimal_places=2, 
                                             allow_null=True, required=False , read_only=True)
     
     created_at   = serializers.DateTimeField(read_only=True)
@@ -100,4 +100,28 @@ class EvaluationSerializer(serializers.ModelSerializer):
             #block reviewer transition, so it can't be changed
             validated_data.pop("reviewer", None)
         return super().update(instance, validated_data)
-    
+
+
+class EvaluationListSerializer(serializers.ModelSerializer):
+    employee     = serializers.CharField(source="employee.user.name", read_only=True)
+    reviewer     = serializers.CharField(source="reviewer.name", read_only=True, default=None)
+    type         = LabelChoiceField(choices=EvalType.choices)
+    status       = LabelChoiceField(choices=EvalStatus.choices)
+    score        = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True, required=False , read_only=True)
+    created_at   = serializers.DateTimeField(read_only=True)
+    updated_at   = serializers.DateTimeField(read_only=True)
+    objectives_score = serializers.FloatField(read_only=True)
+    competencies_score = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = Evaluation
+        fields = [
+            "evaluation_id",
+            "employee",
+            "type", "status", "score",
+            "reviewer",
+            "period",
+            "created_at", "updated_at",
+            "objectives_score",
+            "competencies_score",
+        ]
