@@ -91,6 +91,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
     # NEW: pending evaluations (Drafts only)
     pending_evaluations = serializers.SerializerMethodField(read_only=True)
     pending_evaluations_count = serializers.SerializerMethodField(read_only=True)
+    pending_evaluations_count_mid = serializers.SerializerMethodField(read_only=True)
+    pending_evaluations_count_end = serializers.SerializerMethodField(read_only=True)
 
 
     class Meta:
@@ -120,6 +122,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
             # pending evaluations
             "pending_evaluations",
             "pending_evaluations_count",
+            "pending_evaluations_count_mid",  
+            "pending_evaluations_count_end",   
             
         ]
         read_only_fields = ("employee_id",)
@@ -281,20 +285,44 @@ class EmployeeSerializer(serializers.ModelSerializer):
         
 
     def get_pending_evaluations_count(self, obj):
-
         """
-        Calculate total pending count:
-        - For CURRENT year periods: count DRAFTs OR count 1 if no evaluation exists
-        - For OTHER years: count only DRAFTs
+        Total pending count (stays as number)
         """
-         
-        draft_count = getattr(obj, 'draft_count', 0)
+        draft_count_mid = getattr(obj, 'draft_count_mid', 0)
+        draft_count_end = getattr(obj, 'draft_count_end', 0)
         has_mid = getattr(obj, 'has_current_mid', True)
         has_end = getattr(obj, 'has_current_end', True)
         
-        missing = (0 if has_mid else 1) + (0 if has_end else 1)
-        return draft_count + missing
-
+        missing_mid = 0 if has_mid else 1
+        missing_end = 0 if has_end else 1
+        
+        return draft_count_mid + draft_count_end + missing_mid + missing_end
+    
+    def get_pending_evaluations_count_mid(self, obj):
+        """
+        Pending count for Mid period with suffix
+        Returns format: "2-Mid"
+        """
+        draft_count_mid = getattr(obj, 'draft_count_mid', 0)
+        has_mid = getattr(obj, 'has_current_mid', True)
+        
+        missing = 0 if has_mid else 1
+        count = draft_count_mid + missing
+        
+        return f"{count}-Mid"
+    
+    def get_pending_evaluations_count_end(self, obj):
+        """
+        Pending count for End period with suffix
+        Returns format: "3-End"
+        """
+        draft_count_end = getattr(obj, 'draft_count_end', 0)
+        has_end = getattr(obj, 'has_current_end', True)
+        
+        missing = 0 if has_end else 1
+        count = draft_count_end + missing
+        
+        return f"{count}-End"
 
     def to_representation(self, instance):
         """

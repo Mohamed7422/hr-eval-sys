@@ -141,12 +141,17 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             .select_related('user', 'company')
             .prefetch_related(*prefetches)
             .annotate(
-                # Count drafts
-                draft_count= Count(
+                 # Count drafts for Mid periods (current year only)
+                draft_count_mid=Count(
                     'evaluations',
                     filter=Q(evaluations__status=EvalStatus.DRAFT) &
-                        (Q(evaluations__period__endswith='-Mid') | 
-                            Q(evaluations__period__endswith='-End'))
+                        Q(evaluations__period=f"{current_year}-Mid")
+                ),
+                # Count drafts for End periods (current year only)
+                draft_count_end=Count(
+                    'evaluations',
+                    filter=Q(evaluations__status=EvalStatus.DRAFT) &
+                        Q(evaluations__period=f"{current_year}-End")
                 ),
                 # Check if current year periods exist
                 has_current_mid=Exists(
