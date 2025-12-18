@@ -1,6 +1,6 @@
 from rest_framework import viewsets, filters, status, permissions
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Prefetch, Q, Count
+from django.db.models import Prefetch, Q,Count, Exists, OuterRef
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -9,6 +9,8 @@ from evaluation_app.serializers.employee_serilized import EmployeeSerializer
 from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSelfOrAdminHR, IsAdminOrHR
 from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
 from evaluation_app.eval_filters.employee_filters import EmployeeFilter
+from datetime import datetime
+ 
 
 
 
@@ -117,10 +119,11 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         ]
         # Prefetch all evaluations for pending calculation
         if include_evaluations:
+
             all_evals_qs = (
                 Evaluation.objects
                 .exclude(status=EvalStatus.SELF_EVAL)
-                .only('evaluation_id', 'period', 'status')
+                .only('period', 'status') #removed evaluation id
                 .order_by('period')
             )
             prefetches.append(
@@ -131,13 +134,32 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                 )
             )
         
+        current_year = datetime.now().year
+        current_year_periods = [f"{current_year}-Mid", f"{current_year}-End"]
+    
         qs = (Employee.objects
             .select_related('user', 'company')
             .prefetch_related(*prefetches)
             .annotate(
-                pending_evaluations_count=Count(
-                    "evaluations", 
-                    filter=Q(evaluations__status=EvalStatus.DRAFT)
+                # Count drafts
+                draft_count= Count(
+                    'evaluations',
+                    filter=Q(evaluations__status=EvalStatus.DRAFT) &
+                        (Q(evaluations__period__endswith='-Mid') | 
+                            Q(evaluations__period__endswith='-End'))
+                ),
+                # Check if current year periods exist
+                has_current_mid=Exists(
+                    Evaluation.objects.filter(
+                        employee=OuterRef('pk'),
+                        period=f"{current_year}-Mid"
+                    )
+                ),
+                has_current_end=Exists(
+                    Evaluation.objects.filter(
+                        employee=OuterRef('pk'),
+                        period=f"{current_year}-End"
+                    )
                 )
             )
         )

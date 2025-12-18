@@ -210,7 +210,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         if req and view and getattr(view, "action", None) == "list":
             params = req.query_params
             if not (params.get("employee_id") or params.get("user_id")):
-                return []
+                return [] 
         
         # Get all evaluations for this employee (use prefetched if available)
         all_evals = getattr(obj, 'all_evaluations_cache', None)
@@ -281,13 +281,19 @@ class EmployeeSerializer(serializers.ModelSerializer):
         
 
     def get_pending_evaluations_count(self, obj):
-        cnt = getattr(obj, "pending_evaluations_count", None)
-        if cnt is not None:
-            return cnt
-        drafts = getattr(obj, "pending_evals", None)
-        if drafts is not None:
-            return len(drafts)
-        return obj.evaluations.filter(status=EvalStatus.DRAFT).count()
+
+        """
+        Calculate total pending count:
+        - For CURRENT year periods: count DRAFTs OR count 1 if no evaluation exists
+        - For OTHER years: count only DRAFTs
+        """
+         
+        draft_count = getattr(obj, 'draft_count', 0)
+        has_mid = getattr(obj, 'has_current_mid', True)
+        has_end = getattr(obj, 'has_current_end', True)
+        
+        missing = (0 if has_mid else 1) + (0 if has_end else 1)
+        return draft_count + missing
 
 
     def to_representation(self, instance):
@@ -302,7 +308,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             params = req.query_params
             if not (params.get("employee_id") or params.get("user_id")):
                 # hide the empty list from global list responses
-                rep.pop("pending_evaluations", None)
+                rep.pop("pending_evaluations", None) 
         return rep
 
     # no need to override create() at all—
