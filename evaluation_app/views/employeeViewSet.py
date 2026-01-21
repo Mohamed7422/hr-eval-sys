@@ -40,6 +40,9 @@ class EmployeeViewSet(viewsets.ModelViewSet):
      
     
     def get_permissions(self):
+        # Handle anonymous users (e.g., during schema generation)
+        if not self.request.user.is_authenticated:
+           return [IsAuthenticated()]
         role = self.request.user.role
 
         # ─── LIST ───────────────────────────────────────

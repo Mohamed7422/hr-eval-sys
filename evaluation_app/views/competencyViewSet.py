@@ -28,6 +28,10 @@ class CompetencyViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_at", "updated_at"]
 
     def get_permissions(self):
+        # Handle anonymous users (e.g., during schema generation)
+        if not self.request.user.is_authenticated:
+            return [IsAuthenticated()]
+        
         role = self.request.user.role
         action = self.action
 

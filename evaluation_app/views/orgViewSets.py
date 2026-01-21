@@ -352,6 +352,10 @@ class EmployeePlacementViewSet(viewsets.ModelViewSet):
     lookup_field = "employee_id"  # to resolve by employee_id from URL
     
     def get_permissions(self):
+        # Handle anonymous users (e.g., during schema generation)
+        if not self.request.user.is_authenticated:
+         return [IsAuthenticated()]
+        
         # Admin/HR can write; everyone authenticated can read
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [ReadOnlyOrAdminHR()]

@@ -23,6 +23,10 @@ class ObjectiveViewSet(viewsets.ModelViewSet):
     search_fields = ["title","evaluation_id"]
     ordering_fields = ["created_at", "updated_at", "weight"]
     def get_permissions(self):
+        # Handle anonymous users (e.g., during schema generation)
+        if not self.request.user.is_authenticated:
+           return [IsAuthenticated()]
+        
         role   = self.request.user.role
         action = self.action
         

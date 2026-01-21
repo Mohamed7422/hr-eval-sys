@@ -54,6 +54,9 @@ class EvaluationViewSet(viewsets.ModelViewSet):
 
     #----dynamic permissions----
     def get_permissions(self):
+        # Handle anonymous users (e.g., during schema generation)
+        if not self.request.user.is_authenticated:
+           return [IsAuthenticated()]
         
         action = self.action
         role = getattr(self.request.user, 'role', None)
