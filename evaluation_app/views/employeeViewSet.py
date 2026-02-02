@@ -10,6 +10,8 @@ from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSe
 from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
 from evaluation_app.eval_filters.employee_filters import EmployeeFilter
 from datetime import datetime
+import logging, traceback
+logger =  logging.getLogger(__name__)
  
 
 
@@ -209,26 +211,40 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         permission_classes=[permissions.IsAuthenticated, IsAdminOrHR],
     )
     def import_employees(self, request, *args, **kwargs):
-        dry_run = request.query_params.get("dry_run") == "true"
-        update_existing = request.query_params.get("update_existing", "true").lower() == "true"
-        upsert_by_code = request.query_params.get("upsert_by_code", "true").lower() == "true"
 
         try:
+
+            dry_run = request.query_params.get("dry_run") == "true"
+            update_existing = request.query_params.get("update_existing", "true").lower() == "true"
+            upsert_by_code = request.query_params.get("upsert_by_code", "true").lower() == "true"
+
+            
             rows = parse_employee_rows(request)
+            logger.info(f"Rows parsed: {len(rows)}")
+
+            result = import_employees(rows, 
+                                    dry_run=dry_run,
+                                    update_existing=update_existing,
+                                    upsert_by_code=upsert_by_code)
+            
+            logger.info(f"Import result: {result.get('status')}")
+
+            if result.get("status") == "invalid":
+                return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response(result,
+                            status=status.HTTP_200_OK if dry_run else status.HTTP_201_CREATED)
+        
         except Exception as e:
-            import logging 
-            logging.getLogger("django.request").exception("Employee import failed")
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        result = import_employees(rows, 
-                                  dry_run=dry_run,
-                                  update_existing=update_existing,
-                                  upsert_by_code=upsert_by_code)
-
-        if result.get("status") == "invalid":
-            return Response(result, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(result,
-                        status=status.HTTP_200_OK if dry_run else status.HTTP_201_CREATED)
-    
-    
+            logger.error("=" * 80)
+            logger.error(f"IMPORT FAILED: {type(e).__name__}: {str(e)}")
+            logger.error("=" * 80)
+            logger.error(traceback.format_exc())
+            logger.error("=" * 80)
+            
+            return Response({
+                "status": "error",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "detail": "Import failed - check server logs for details"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
