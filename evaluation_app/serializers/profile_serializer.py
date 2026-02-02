@@ -116,7 +116,7 @@ class MyProfileSerializer(serializers.ModelSerializer):
         field = self.fields.get(field_name)
         return field.to_representation(value) if field else value
     
-    def to_representation(self, instance: User):
+    def to_representation(self, instance):
         u = {
             "user_id": str(instance.user_id),
             "username": instance.username,
@@ -161,7 +161,7 @@ class MyProfileSerializer(serializers.ModelSerializer):
    
 
     # -------- updates (no password here; role is read-only) ----------
-    def update(self, instance: User, validated_data):
+    def update(self, instance, validated_data):
         # strip forbidden keys
         validated_data.pop("password", None)
         validated_data.pop("role", None)

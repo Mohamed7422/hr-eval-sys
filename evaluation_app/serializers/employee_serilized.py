@@ -34,7 +34,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
     job_type = LabelChoiceField(choices=JobType.choices)
     location = serializers.CharField(allow_blank=True)
     branch = LabelChoiceField(choices=BranchType.choices)
-    company_name      = serializers.CharField(source="company.name", read_only=True)
+    company_name      = serializers.SerializerMethodField(read_only=True)
     #department      = serializers.SlugRelatedField(source="departments", many=True, slug_field="name", read_only=True)
      # ─────── TIMESTAMPS / DATES ────────────────────────────────────
     join_date         = serializers.DateField(format="%Y-%m-%d")
@@ -136,7 +136,14 @@ class EmployeeSerializer(serializers.ModelSerializer):
         # return the department of the first placement if any
        # p = self._latest_placement(obj)
         #return p.department.name if p and p.department else None
-     
+
+    def get_company_name(self, obj):
+        try:
+            if hasattr(obj, "company") and obj.company:
+               return obj.company.name
+            return None
+        except Exception:
+            return None     
     
     def create(self, validated_data):
         user_payload = validated_data.pop("user", None)
