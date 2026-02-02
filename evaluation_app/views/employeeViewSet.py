@@ -10,6 +10,7 @@ from evaluation_app.permissions import IsHR, IsAdmin, IsHOD, IsLineManager, IsSe
 from evaluation_app.services.employee_importer import parse_employee_rows, import_employees
 from evaluation_app.eval_filters.employee_filters import EmployeeFilter
 from datetime import datetime
+from rest_framework.parsers import MultiPartParser, FormParser
 import logging, traceback
 logger =  logging.getLogger(__name__)
  
@@ -209,6 +210,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         methods=["post"],
         url_path="import",
         permission_classes=[permissions.IsAuthenticated, IsAdminOrHR],
+        parser_classes=[MultiPartParser, FormParser],
     )
     def import_employees(self, request, *args, **kwargs):
 

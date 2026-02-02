@@ -134,6 +134,8 @@ def import_employees(rows: List[Dict[str, Any]], *, dry_run: bool = False,
         employee = None
         if user and hasattr(user, "employee_profile"):
             employee = user.employee_profile
+            if employee:
+                employee = Employee.objects.select_related('company', 'user').get(pk=employee.pk)
         elif upsert_by_code and row.get("employee_code"):
             employee = employees_by_code.get((company.name, row["employee_code"]))
 
@@ -164,7 +166,17 @@ def import_employees(rows: List[Dict[str, Any]], *, dry_run: bool = False,
     if row_errors:
         return {"status": "invalid", "errors": row_errors}
     
-    # ---------- PRE-VALIDATION (works for dry_run and commit) ----------
+    if dry_run:
+        return {
+            "status": "success", 
+            "dry_run": True,
+            "validated_count": len(cleaned),
+            "to_create": len(to_create),
+            "to_update": len(to_update),
+            "message": "Dry run successful. Data is ready to import."
+        }
+    
+    # ---------- PRE-VALIDATION (works for for just importing) ----------
     validation_errors = []
     # Validate creates
     for row_no, data in to_create:
