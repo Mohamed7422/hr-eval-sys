@@ -166,15 +166,15 @@ def import_employees(rows: List[Dict[str, Any]], *, dry_run: bool = False,
     if row_errors:
         return {"status": "invalid", "errors": row_errors}
     
-    if dry_run:
-        return {
-            "status": "success", 
-            "dry_run": True,
-            "validated_count": len(cleaned),
-            "to_create": len(to_create),
-            "to_update": len(to_update),
-            "message": "Dry run successful. Data is ready to import."
-        }
+    #if dry_run:
+    #    return {
+    #        "status": "success", 
+    #        "dry_run": True,
+     #       "validated_count": len(cleaned),
+     #       "to_create": len(to_create),
+    #        "to_update": len(to_update),
+      #      "message": "Dry run successful. Data is ready to import."
+        #}
     
     # ---------- PRE-VALIDATION (works for for just importing) ----------
     validation_errors = []
