@@ -5,12 +5,6 @@
 __pycache__/
 *.py[cod]
 
-# Pytest and coverage
-.pytest_cache/
-.coverage
-coverage.xml
-htmlcov/
-.tox/
 # IDE files (optional)
 .vscode/
 .idea/
@@ -25,8 +19,3 @@ Thumbs.db
 .vercel
 .env*.local
 .env
-
-
-.replit
-replit.nix
-.config/
