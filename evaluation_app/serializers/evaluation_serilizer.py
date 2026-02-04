@@ -1,83 +1,127 @@
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from evaluation_app.models import (
-    Evaluation, Objective, Competency, EmpStatus, EvalStatus, EvalType
+    Evaluation, EvalStatus, EvalType
 )
-from evaluation_app.serializers.employee_serilized import EmployeeSerializer
+from evaluation_app.models import Employee
+from evaluation_app.utils import LabelChoiceField
+from evaluation_app.serializers.objective_serializer import ObjectiveSerializer
+from evaluation_app.serializers.competency_serializer import CompetencySerializer
+from evaluation_app.models import WeightsConfiguration
+from evaluation_app.serializers.activity_log import ActivityLogSerializer
 
+User = get_user_model()
 
-class ObjectiveSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Objective
-        fields = "__all__"
-        read_only_fields = ("objective_id", "created_at", "updated_at")
-
+ 
 class EvaluationSerializer(serializers.ModelSerializer):
+    
+    #--WRITE-ONLY--
+
+    employee_id = serializers.PrimaryKeyRelatedField(
+        source="employee",
+        queryset=Employee.objects.all(),
+    )
+
+    reviewer_id = serializers.PrimaryKeyRelatedField(
+        source="reviewer",
+        queryset=User.objects.all(),
+        allow_null=True,
+        required=False
+    )
+
     """
     • Nested objectives (read-only list).  
     • Employee & reviewer use UUIDs but return brief info.
     """
-    employee = EmployeeSerializer(read_only=True)
-    employee_id = serializers.UUIDField()
-    reviewer_id = serializers.UUIDField()
-    objectives  = ObjectiveSerializer(many=True)
+    employee     = serializers.CharField(
+        source="employee.user.name", read_only=True)
+    reviewer     = serializers.CharField(
+        source="reviewer.name", read_only=True, default=None
+    )
+    objectives   = ObjectiveSerializer(source="objective_set",many=True, read_only=True)
+    competencies = CompetencySerializer(source="competency_set",many=True, read_only=True)
+    type         = LabelChoiceField(choices=EvalType.choices)
+    status       = LabelChoiceField(choices=EvalStatus.choices)
+    score        = serializers.DecimalField(max_digits=5, decimal_places=2, 
+                                            allow_null=True, required=False , read_only=True)
+    
+    created_at   = serializers.DateTimeField(read_only=True)
+    updated_at   = serializers.DateTimeField(read_only=True)
+
+    objectives_score = serializers.FloatField(read_only=True)
+    competencies_score = serializers.FloatField(read_only=True) 
+    
+    activity_log = ActivityLogSerializer(source="activity_logs", many=True, read_only=True)
     class Meta:
         model = Evaluation
         fields = [
-            "evaluation_id", "employee", "employee_id",
+            "evaluation_id", 
+            "employee", "employee_id",
             "type", "status", "score",
-            "reviewer_id", "period",
+            "reviewer", "reviewer_id",
+            "period",
             "created_at", "updated_at",
+            "objectives_score",
+            "competencies_score",
+            "activity_log",
             "objectives",
+            "competencies"
         ]
         read_only_fields = ("evaluation_id", "created_at", "updated_at")
 
      # ── create / update helpers ──────────────────────────
     def create(self, validated_data):
-        print(">> Received validated_data:", validated_data)
-        employee_id = validated_data.pop('employee_id')  
-        reviewer_id = validated_data.pop('reviewer_id', None) 
+        evaluation_instance = super().create(validated_data)
+        lvl = evaluation_instance.employee.managerial_level
+        try:
+            weights = WeightsConfiguration.objects.get(level_name=lvl)
 
-        employee = self.context['request'].user.employee_profile.__class__.objects.get(
-            pk=employee_id
-        )
-        reviewer = None
-        if reviewer_id: 
-            from accounts.models import User
-            reviewer = User.objects.get(pk=reviewer_id)
+            evaluation_instance.obj_weight_pct = weights.objective_weight or 0
+            evaluation_instance.comp_weight_pct = weights.competency_weight or 0
+            evaluation_instance.comp_core_pct = weights.core_weight or 0
+            evaluation_instance.comp_leadership_pct = weights.leadership_weight or 0
+            evaluation_instance.comp_functional_pct = weights.functional_weight or 0
+            evaluation_instance.save(update_fields=[
+                "obj_weight_pct",
+                "comp_weight_pct", 
+                "comp_core_pct",
+                "comp_leadership_pct",
+                "comp_functional_pct"
+            ]) 
+        except WeightsConfiguration.DoesNotExist:
+            pass     
 
-        return Evaluation.objects.create(
-            employee=employee,
-            reviewer=reviewer,
-            **validated_data
-        ) 
+        return  evaluation_instance 
     
     def update(self, instance, validated_data):
-     
-     # Handle objectives update if present
-     if 'objectives' in validated_data:
-        objectives_data = validated_data.pop('objectives')
-        
-        for objective_data in objectives_data:
-            # If objective has ID, update existing
-            if 'objective_id' in objective_data:
-                objective = instance.objectives.filter(
-                    objective_id=objective_data['objective_id']
-                ).first()
-                if objective:
-                    for attr, value in objective_data.items():
-                        setattr(objective, attr, value)
-                    objective.save()
-            # If no ID, create new objective
-            else:
-                Objective.objects.create(
-                    evaluation=instance,
-                    **objective_data
-                )
+        if instance.status == EvalStatus.SELF_EVAL:
+            if "status" in validated_data and validated_data["status"] != EvalStatus.SELF_EVAL:
+                raise serializers.ValidationError({"status": "Self evaluations cannot change status."})
+            #block reviewer transition, so it can't be changed
+            validated_data.pop("reviewer", None)
+        return super().update(instance, validated_data)
 
-    # Handle other fields as before
-     for field in ("status", "score", "reviewer_id"):
-        if field in validated_data:
-            setattr(instance, field, validated_data[field])
-    
-     instance.save()
-     return instance
+
+class EvaluationListSerializer(serializers.ModelSerializer):
+    employee     = serializers.CharField(source="employee.user.name", read_only=True)
+    reviewer     = serializers.CharField(source="reviewer.name", read_only=True, default=None)
+    type         = LabelChoiceField(choices=EvalType.choices)
+    status       = LabelChoiceField(choices=EvalStatus.choices)
+    score        = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True, required=False , read_only=True)
+    created_at   = serializers.DateTimeField(read_only=True)
+    updated_at   = serializers.DateTimeField(read_only=True)
+    objectives_score = serializers.FloatField(read_only=True)
+    competencies_score = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = Evaluation
+        fields = [
+            "evaluation_id",
+            "employee",
+            "type", "status", "score",
+            "reviewer",
+            "period",
+            "created_at", "updated_at",
+            "objectives_score",
+            "competencies_score",
+        ]
