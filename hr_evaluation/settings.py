@@ -11,10 +11,12 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+ 
 from datetime import timedelta
 import os
 import dj_database_url 
 from dotenv import load_dotenv
+ 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,9 +32,11 @@ if env_file.exists():
 
 # SECURITY WARNING: keep the secret key used in production secret!
 
+ 
 SECRET_KEY = os.environ["SECRET_KEY"]
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is not set!")
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
@@ -41,16 +45,12 @@ DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 #ALLOWED_HOSTS = ['688463552f41.ngrok-free.app', 'localhost', '127.0.0.1']
 ALLOWED_HOSTS = ["*"]
 print("🔒 ALLOWED_HOSTS =", ALLOWED_HOSTS)
-APPEND_SLASH = False
+ 
 # Application definition
 
-raw_cors  = os.environ.get("CORS_ALLOWED_ORIGINS", "")
 raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
-
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in raw_cors.split(",") if origin.strip()]
 # split on commas, strip any whitespace
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in raw.split(",") if origin.strip()]
+CSRF_TRUSTED_ORIGINS = [url.strip() for url in raw.split(",") if url.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -63,15 +63,14 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",  # optional: enable /refresh + blacklist       
     "drf_spectacular",   # OpenAPI / Swagger
     "accounts",      # user management  
-    #"evaluation_app",              # your business logic
+    "evaluation_app",              # your business logic
     "corsheaders",
-    "evaluation_app.apps.EvaluationAppConfig" # to load signals
+                    
 ]
 
 AUTH_USER_MODEL = "accounts.User"
 
 REST_FRAMEWORK = {
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -80,33 +79,17 @@ REST_FRAMEWORK = {
     ),
 }
 
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'HR Evaluation System API',
-    'DESCRIPTION': 'A comprehensive API for managing employee evaluations, competencies, and performance assessments.',
-    'VERSION': '1.0.0',
-    
-    'SCHEMA_PATH_PREFIX': '/api/',
-    'AUTHENTICATION_WHITELIST': [
-        'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-    ],
-    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
-    'SERVE_INCLUDE_SCHEMA': False,
-}
-
 SIMPLE_JWT = {
     # use the actual primary‐key field name on your User model
       "USER_ID_FIELD": "user_id",
     # this is the name of the claim inside the token payload
       "USER_ID_CLAIM": "user_id",
-      "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+      "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
       "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
       "ROTATE_REFRESH_TOKENS": True,
       "BLACKLIST_AFTER_ROTATION": True,
       "AUTH_HEADER_TYPES": ("Bearer",),
-      "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
       "UPDATE_LAST_LOGIN": True,
-      "CHECK_REVOKE_TOKEN": True,
 }
 
 MIDDLEWARE = [
@@ -122,35 +105,15 @@ MIDDLEWARE = [
 ]
 
 # -- Allow only your production front-end(s) --------------------
-#CORS_ALLOW_ALL_ORIGINS = True
-
+CORS_ALLOW_ALL_ORIGINS = True
+#CORS_ALLOWED_ORIGINS = []
      
   # allow all origins (not recommended for production)
    # "https://hr-evaluation-system.vercel.app/",
     # add staging or local ngrok URLs if needed
 
 # If your frontend sends cookies / Authorization header:
-
-
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
+CORS_ALLOW_CREDENTIALS = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
@@ -162,6 +125,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 _static_dir = BASE_DIR / "evaluation_app" / "static"
 STATICFILES_DIRS = [_static_dir] if _static_dir.exists() else []
+
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 ROOT_URLCONF = 'hr_evaluation.urls'
@@ -187,6 +151,7 @@ WSGI_APPLICATION = 'hr_evaluation.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+
 # Default to SQLite for development if no DATABASE_URL is provided
 default_db_url = "sqlite:///" + str(BASE_DIR / "db.sqlite3")
 
@@ -194,15 +159,16 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get("DATABASE_URL", default_db_url),
         conn_max_age=600,
-        ssl_require=not DEBUG
+        ssl_require=True if not DEBUG else None
     )
 }
 
 # For PostgreSQL on Vercel, ensure SSL is configured properly
-#if 'postgresql' in DATABASES['default']['ENGINE']:
- #   DATABASES['default']['OPTIONS'] = {
-  #      'sslmode': 'require',
-   # }
+if 'postgresql' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['OPTIONS'] = {
+        'sslmode': 'require',
+    }
+
 
  
 # Password validation
@@ -213,7 +179,7 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', "OPTIONS": {"min_length": 8},
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -221,11 +187,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
-]
-
-AUTHENTICATION_BACKENDS = [
-    "accounts.auth_backend.FlexibleAuthBackend",
-    "django.contrib.auth.backends.ModelBackend",
 ]
 
 
@@ -241,6 +202,8 @@ USE_I18N = True
 USE_TZ = True
 
 
+
+ 
 
 
 

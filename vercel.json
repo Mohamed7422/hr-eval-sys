@@ -4,6 +4,7 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python",
+ 
       "config": {
         "maxLambdaSize": "50mb"
       }
@@ -12,6 +13,5 @@
     "routes": [
     { "src": "/(.*)","dest": "hr_evaluation/wsgi.py" }
   ]
-
-
 }
+ 
