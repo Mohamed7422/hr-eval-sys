@@ -10,10 +10,10 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 import os
 
 from django.core.wsgi import get_wsgi_application
+from whitenoise import WhiteNoise
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hr_evaluation.settings')
 
 application = get_wsgi_application()
-
 app = application  # For compatibility with serverless frameworks like Vercel
 # This line is often needed for serverless deployments to recognize the WSGI app

@@ -4,6 +4,7 @@
     {
       "src": "hr_evaluation/wsgi.py",
       "use": "@vercel/python",
+ 
       "config": {
         "runtime": "python3.12",
         "maxLambdaSize": "15mb"
@@ -13,6 +14,5 @@
     "routes": [
     { "src": "/(.*)","dest": "hr_evaluation/wsgi.py" }
   ]
-
-
 }
+ 
