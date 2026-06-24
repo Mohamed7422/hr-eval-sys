@@ -1,4 +1,4 @@
-﻿asgiref==3.8.1
+asgiref==3.8.1
 attrs==25.3.0
 colorama==0.4.6
 dj-database-url==3.0.1
