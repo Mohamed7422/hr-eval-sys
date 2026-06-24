@@ -10,7 +10,8 @@
     }
   ],
     "routes": [
-    { "src": "/(.*)","dest": "hr_evaluation/wsgi.py" }
+    { "src": "/static/(.*)", "dest": "/static/$1" },
+    { "src": "/(.*)","dest": "api/index.py" }
   ]
 
 
