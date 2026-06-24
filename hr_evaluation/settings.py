@@ -31,6 +31,8 @@ if env_file.exists():
 # SECURITY WARNING: keep the secret key used in production secret!
 
 SECRET_KEY = os.environ["SECRET_KEY"]
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is not set!")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
@@ -158,7 +160,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 
-STATICFILES_DIRS = [ BASE_DIR / "evaluation_app" / "static" ]
+_static_dir = BASE_DIR / "evaluation_app" / "static"
+STATICFILES_DIRS = [_static_dir] if _static_dir.exists() else []
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 ROOT_URLCONF = 'hr_evaluation.urls'
