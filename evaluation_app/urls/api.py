@@ -9,6 +9,7 @@ from evaluation_app.views.weightsConfigurationViewSet import WeightConfigViewSet
 from evaluation_app.views.activity_log_viewset import ActivityLogViewSet
 
 
+from evaluation_app.views.sheet_import_view import SheetImportView
 from django.urls import path
 from rest_framework_simplejwt.views import  (
            TokenRefreshView,    # POST /api/auth/refresh/
@@ -34,7 +35,8 @@ urlpatterns = [
     path("auth/login/",   EmailLoginView.as_view(),   name="jwt-login"),
     path("auth/refresh/", TokenRefreshView.as_view(),      name="jwt-refresh"),
     path("auth/logout/",  TokenBlacklistView.as_view(),    name="jwt-logout"),
-    # REST resources   
+    # REST resources
+    path("import-sheet/", SheetImportView.as_view(), name="import-sheet"),
     *router.urls
 ]          
 
