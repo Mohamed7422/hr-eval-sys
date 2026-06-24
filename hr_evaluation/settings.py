@@ -11,12 +11,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
- 
 from datetime import timedelta
 import os
 import dj_database_url 
 from dotenv import load_dotenv
- 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,11 +30,9 @@ if env_file.exists():
 
 # SECURITY WARNING: keep the secret key used in production secret!
 
- 
 SECRET_KEY = os.environ["SECRET_KEY"]
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is not set!")
-
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
@@ -191,7 +187,6 @@ WSGI_APPLICATION = 'hr_evaluation.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-
 # Default to SQLite for development if no DATABASE_URL is provided
 default_db_url = "sqlite:///" + str(BASE_DIR / "db.sqlite3")
 
@@ -208,7 +203,6 @@ DATABASES = {
  #   DATABASES['default']['OPTIONS'] = {
   #      'sslmode': 'require',
    # }
-
 
  
 # Password validation
@@ -247,8 +241,6 @@ USE_I18N = True
 USE_TZ = True
 
 
-
- 
 
 
 
