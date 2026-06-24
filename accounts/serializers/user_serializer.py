@@ -1,23 +1,34 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from evaluation_app.utils import LabelChoiceField
+from django.utils  import timezone
 
-
+DEFAULT_PASSWORD = "Password123"
 
 User = get_user_model()
 
 class UserCreateSerializer(serializers.ModelSerializer):
     """Create-only serializer. Hashes password & returns user_id."""
-    password = serializers.CharField(write_only=True, min_length=8)
-
+    password = serializers.CharField(write_only=True, min_length=8, required=False)
+    role = LabelChoiceField(choices=User._meta.get_field("role").choices)
+    position = serializers.CharField(required=False, allow_blank=True)
+    gender = LabelChoiceField(choices=User._meta.get_field("gender").choices, required=False)
     class Meta:
         model = User
-        fields = ["user_id", "username", "first_name", "last_name", "name", "email", "phone", "avatar", "password", "role", "title"]
+        fields = ["user_id", "username", "first_name", "last_name",
+                   "name", "email", "phone","country_code","avatar", "password", "role", "position", "gender"]
         read_only_fields = ("user_id", "created_at", "updated_at")  # user_id is auto-generated
 
     def create(self, validated_data):  # called by viewset
-        password = validated_data.pop("password")
+        password = validated_data.pop("password",DEFAULT_PASSWORD)  # default if not supplied
         user = User(**validated_data)
-        user.set_password(password)          # 🔑 hashes!
+        user.set_password(password)          # hash the password
+       
+        if hasattr(user, "is_default_password"):
+            user.is_default_password = (password == DEFAULT_PASSWORD)
+        if hasattr(user, "password_last_changed"):
+            user.password_last_changed = None if user.is_default_password else timezone.now()      
+        
         user.save()
         return user 
 
@@ -31,3 +42,4 @@ class UserCreateSerializer(serializers.ModelSerializer):
             instance.set_password(pwd)
         instance.save()
         return instance  
+    

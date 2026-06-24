@@ -2,17 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "hr_evaluation/wsgi.py",
+      "src": "api/index.py",
       "use": "@vercel/python",
  
       "config": {
-        "runtime": "python3.12",
-        "maxLambdaSize": "15mb"
+        "maxLambdaSize": "50mb"
       }
     }
   ],
     "routes": [
-    { "src": "/(.*)","dest": "hr_evaluation/wsgi.py" }
+    { "src": "/static/(.*)", "dest": "/static/$1" },
+    { "src": "/(.*)","dest": "api/index.py" }
   ]
 }
  
