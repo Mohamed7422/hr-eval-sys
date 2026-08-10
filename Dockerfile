@@ -25,17 +25,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /install /usr/local
 COPY . .
 
-# Collect static files (whitenoise serves them directly, no nginx needed)
-RUN DATABASE_URL=sqlite:///tmp/dummy.db \
-    DJANGO_SECRET_KEY=build-time-placeholder \
-    ALLOWED_HOSTS=localhost \
-    python manage.py collectstatic --noinput
-
 EXPOSE 8000
 
-# hr_evaluation = the folder containing your settings.py (confirmed from repo)
-CMD ["gunicorn", "hr_evaluation.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "2", \
-     "--timeout", "60", \
-     "--access-logfile", "-"]
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate && gunicorn hr_evaluation.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60 --access-logfile -"]
