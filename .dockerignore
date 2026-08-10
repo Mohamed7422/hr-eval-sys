@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.venv/
+venv/
+.env
+vercel.json
+build_files.sh
+.vercelignore
+.replit
+.git/
+.gitignore
+pytest.ini
+staticfiles/
